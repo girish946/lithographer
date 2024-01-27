@@ -1,46 +1,61 @@
-<!doctype html>
+
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="stylesheet" href="styles.css" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tauri App</title>
-    <script type="module" src="/main.js" defer></script>
-    <style>
-      .logo.vanilla:hover {
-        filter: drop-shadow(0 0 2em #ffe21c);
-      }
-    </style>
-  </head>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lithographer</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
 
-  <body>
-    <div class="container">
-      <h1>Welcome to Tauri!</h1>
+<div class="container">
+  <header class="header">
+    <div class="logo">
 
-      <div class="row">
-        <a href="https://tauri.app" target="_blank">
-          <img src="/assets/tauri.svg" class="logo tauri" alt="Tauri logo" />
-        </a>
-        <a
-          href="https://developer.mozilla.org/en-US/docs/Web/JavaScript"
-          target="_blank"
-        >
-          <img
-            src="/assets/javascript.svg"
-            class="logo vanilla"
-            alt="JavaScript logo"
-          />
-        </a>
+    <img src="assets/logo.png" alt="Lithographer logo" class="logo">
+        </div>
+  </header>
+
+  <div class="main-content">
+
+    <div class="icon-row">
+      <div class="icon-container">
+        <img src="assets/file-icon-1.png" alt="File Icon" class="icon">
       </div>
-
-      <p>Click on the Tauri logo to learn more about the framework</p>
-
-      <form class="row" id="greet-form">
-        <input id="greet-input" placeholder="Enter a name..." />
-        <button type="submit">Greet</button>
-      </form>
-
-      <p id="greet-msg"></p>
+      <div class="icon-container">
+        <img src="assets/disk-icon.png" alt="Disk Icon" class="icon">
+      </div>
+      <div class="icon-container">
+        <img src="assets/pen-icon.png" alt="Pen Icon" class="icon">
+      </div>
     </div>
-  </body>
+
+    <div class="action-row">
+      <div class="action-container">
+        <div class="action" id="writeFile">Write to SD Card</div>
+        <div class="action" id="cloneFile">Clone from SD Card</div>
+      </div>
+      <div class="action-container">
+        <select id="diskSelect">
+          <option value="">Select Disk</option>
+          <!-- Disk options will go here -->
+        </select>
+      </div>
+      <div class="action-container">
+        <button id="startProcess">Start</button>
+      </div>
+    </div>
+
+    <div class="progress-row">
+      <div class="progress-bar">
+        <div class="progress" style="width: 50%;">50%</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
 </html>
