@@ -1,8 +1,17 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::{fs, path::PathBuf};
-type Device = (String, (String, String, u8));
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct DeviceInfo {
+    pub device_name: String,
+    pub vendor_name: String,
+    pub model_name: String,
+    pub removable: u8,
+}
 
 /// function to read the file contents as a string
 fn get_file_content(input_file: String) -> Result<String, Box<dyn std::error::Error>> {
@@ -22,7 +31,7 @@ fn get_file_content(input_file: String) -> Result<String, Box<dyn std::error::Er
 }
 
 #[tauri::command]
-fn get_storage_devices() -> Result<Vec<Device>, String> {
+fn get_storage_devices() -> Result<Vec<String>, String> {
     let paths = match fs::read_dir("/sys/block/") {
         Ok(paths) => paths,
         Err(e) => {
@@ -30,7 +39,7 @@ fn get_storage_devices() -> Result<Vec<Device>, String> {
             return Err("".to_string());
         }
     };
-    let mut devices: Vec<Device> = Vec::new();
+    let mut devices: Vec<String> = Vec::new();
 
     for path in paths {
         let p = match path {
@@ -108,15 +117,23 @@ fn get_storage_devices() -> Result<Vec<Device>, String> {
                 dev_path.push(device_end_name);
                 if dev_path.exists() {
                     if removable == "1\n" {
-                        devices.push((
-                            dev_path.display().to_string(),
-                            (dev_vendor_name, model_name, 1),
-                        ));
+                        let dev_info = DeviceInfo {
+                            device_name: dev_path.display().to_string(),
+                            vendor_name: dev_vendor_name,
+                            model_name,
+                            removable: 1,
+                        };
+                        let device_json = json!(dev_info).to_string();
+                        devices.push(device_json);
                     } else if removable == "0\n" {
-                        devices.push((
-                            dev_path.display().to_string(),
-                            (dev_vendor_name, model_name, 0),
-                        ));
+                        let dev_info = DeviceInfo {
+                            device_name: dev_path.display().to_string(),
+                            vendor_name: dev_vendor_name,
+                            model_name,
+                            removable: 0,
+                        };
+                        let dev_json = json!(dev_info).to_string();
+                        devices.push(dev_json);
                     }
                 }
             }
