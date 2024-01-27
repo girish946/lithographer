@@ -1,16 +1,30 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use litho;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::{fs, path::PathBuf};
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DeviceInfo {
     pub device_name: String,
     pub vendor_name: String,
     pub model_name: String,
     pub removable: u8,
+}
+
+#[tauri::command]
+fn execute(operation: String, device: String, image: String) -> Result<String, String> {
+    println!(
+        "operation: {}, device: {}, image: {}",
+        operation, device, image
+    );
+    if operation == "flash".to_string() {
+        let _ = litho::flash(image, device, 4096, false);
+    } else if operation == "clone".to_string() {
+        let _ = litho::clone(device, image, 4096, false);
+    }
+    Ok("".to_string())
 }
 
 /// function to read the file contents as a string
@@ -144,7 +158,7 @@ fn get_storage_devices() -> Result<Vec<String>, String> {
 
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![get_storage_devices])
+        .invoke_handler(tauri::generate_handler![get_storage_devices, execute])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

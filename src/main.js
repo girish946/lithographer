@@ -63,6 +63,7 @@ function start_process_on_click(e) {
   const command_line = `litho ${clone_or_flash} -f ${selected_file} -d ${selected_disk} -b 16777216`;
   console.log(command_line);
   updateProgressBar(100);
+  invoke("execute", { operation: clone_or_flash, device: selected_disk, image: selected_file })
 }
 
 function select_device_on_click(e) {
