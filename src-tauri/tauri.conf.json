@@ -38,6 +38,47 @@
         "icons/icon.ico"
       ]
     },
+    "cli": {
+      "description": "",
+      "longDescription": "",
+      "beforeHelp": "",
+      "afterHelp": "",
+      "args": [],
+      "subcommands": {
+        "clone": {
+          "args": [
+            {
+              "name": "file",
+              "short": "f",
+              "takesValue": true,
+              "multiple": false
+            },
+            {
+              "name": "disk",
+              "short": "d",
+              "takesValue": true,
+              "multiple": false
+            }
+          ]
+        },
+        "flash": {
+          "args": [
+            {
+              "name": "file",
+              "short": "f",
+              "takesValue": true,
+              "multiple": false
+            },
+            {
+              "name": "disk",
+              "short": "d",
+              "takesValue": true,
+              "multiple": false
+            }
+          ]
+        }
+      }
+    },
     "security": {
       "csp": null
     },

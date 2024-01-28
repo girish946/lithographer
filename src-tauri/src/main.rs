@@ -4,7 +4,11 @@
 use litho;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use std::io::{self, Read};
+use std::path::Path;
+use std::process;
 use std::{fs, path::PathBuf};
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DeviceInfo {
     pub device_name: String,
@@ -23,6 +27,44 @@ fn execute(operation: String, device: String, image: String) -> Result<String, S
         let _ = litho::flash(image, device, 4096, false);
     } else if operation == "clone".to_string() {
         let _ = litho::clone(device, image, 4096, false);
+    }
+    Ok("".to_string())
+}
+fn is_removable_device(device_path: &str) -> io::Result<bool> {
+    // Extract device name from the device path
+    let device_name = Path::new(device_path)
+        .file_name()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "Invalid device path"))?
+        .to_str()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "Non UTF-8 device name"))?;
+
+    // Construct the path to the removable file
+    let removable_path = format!("/sys/block/{}/removable", device_name);
+
+    println!("removable_path: {}", removable_path);
+
+    // Read the contents of the removable file
+    let mut file = fs::File::open(removable_path)?;
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)?;
+
+    // Check if the device is removable
+    Ok(contents.trim() == "1")
+}
+
+fn validate_and_execute(
+    operation: String,
+    device: String,
+    image: String,
+) -> Result<String, String> {
+    println!(
+        "operation: {}, device: {}, image: {}",
+        operation, device, image
+    );
+    if is_removable_device(&device).unwrap() {
+        println!("device is removable");
+    } else {
+        println!("device is not removable");
     }
     Ok("".to_string())
 }
@@ -158,6 +200,53 @@ fn get_storage_devices() -> Result<Vec<String>, String> {
 
 fn main() {
     tauri::Builder::default()
+        .setup(|app| {
+            match app.get_cli_matches() {
+                Ok(matches) => {
+                    println!("{:?}", matches);
+                    match matches.subcommand {
+                        Some(subcommand) => {
+                            println!("subcommand found: {:?}", subcommand);
+                            subcommand.matches.args.iter().for_each(|(key, value)| {
+                                println!("key: {:?}, value: {}", key, value.value);
+                            });
+                            let operation = subcommand.name;
+                            let image = subcommand
+                                .matches
+                                .args
+                                .get("file")
+                                .unwrap()
+                                .value
+                                .as_str()
+                                .unwrap()
+                                .to_string();
+                            // .clone()
+                            // .to_string();
+                            let device = subcommand
+                                .matches
+                                .args
+                                .get("disk")
+                                .unwrap()
+                                .value
+                                .as_str()
+                                .unwrap()
+                                .to_string()
+                                .clone();
+
+                            let _ = validate_and_execute(operation, device, image);
+                        }
+                        None => {
+                            println!("no subcommand found");
+                        }
+                    }
+                    process::exit(0);
+                }
+                Err(e) => {
+                    println!("error occured while parsing the cli args: {}", e);
+                }
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![get_storage_devices, execute])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
