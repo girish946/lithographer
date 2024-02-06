@@ -8,6 +8,7 @@ use std::io::{self, Read};
 use std::path::Path;
 use std::process;
 use std::{fs, path::PathBuf};
+use tauri::Window;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DeviceInfo {
@@ -17,16 +18,36 @@ pub struct DeviceInfo {
     pub removable: u8,
 }
 
+#[derive(Clone, serde::Serialize)]
+struct Progress {
+    percentage: f64,
+}
+
 #[tauri::command]
-fn execute(operation: String, device: String, image: String) -> Result<String, String> {
+async fn execute(
+    operation: String,
+    device: String,
+    image: String,
+    window: Window,
+) -> Result<String, String> {
     println!(
         "operation: {}, device: {}, image: {}",
         operation, device, image
     );
+
+    let callback = |percentage| {
+        // println!("callback progress: {}", percentage);
+        match window.emit("percent", Some(Progress { percentage })) {
+            Ok(_) => {}
+            Err(e) => {
+                println!("error occured while emitting progress: {}", e);
+            }
+        };
+    };
     if operation == "flash".to_string() {
-        let _ = litho::flash(image, device, 4096, false);
+        let _ = litho::flash(image, device, 4096, false, callback);
     } else if operation == "clone".to_string() {
-        let _ = litho::clone(device, image, 4096, false);
+        let _ = litho::clone(device, image, 4096, false, callback);
     }
     Ok("".to_string())
 }
@@ -203,7 +224,7 @@ fn main() {
         .setup(|app| {
             match app.get_cli_matches() {
                 Ok(matches) => {
-                    println!("{:?}", matches);
+                    // println!("{:?}", matches);
                     match matches.subcommand {
                         Some(subcommand) => {
                             println!("subcommand found: {:?}", subcommand);
@@ -234,12 +255,12 @@ fn main() {
                                 .clone();
 
                             let _ = validate_and_execute(operation, device, image);
+                            process::exit(0);
                         }
                         None => {
-                            println!("no subcommand found");
+                            // println!("no subcommand found");
                         }
                     }
-                    process::exit(0);
                 }
                 Err(e) => {
                     println!("error occured while parsing the cli args: {}", e);

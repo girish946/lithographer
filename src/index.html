@@ -1,60 +1,40 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lithographer</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SD Card Writer UI</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
-<body>
 
-<div class="container">
-  <header class="header">
-    <div class="logo">
-
-    <img src="assets/logo.png" alt="Lithographer logo" class="logo">
-        </div>
-  </header>
-
+<body class="page">
   <div class="main-content">
-
-    <div class="icon-row">
-      <div class="icon-container">
-        <img src="assets/file-icon-1.png" alt="File Icon" class="icon">
-      </div>
-      <div class="icon-container">
-        <img src="assets/disk-icon.png" alt="Disk Icon" class="icon">
-      </div>
-      <div class="icon-container">
-        <img src="assets/pen-icon.png" alt="Pen Icon" class="icon">
+    <div class="logo-area">
+      <img src="assets/logo.png" alt="logo" class="logo-img"></img>
+    </div>
+    <div class="central-controls">
+      <div class="central-control-row">
+        <div class="left-text-column">
+          <a href="" class="flash-image" id="writeFile">Flash Image</a>
+          <a href="" class="clone-image" id="cloneDiskToFile">Clone to File</a>
+          <a href="" class="clone-device">Clone to Device</a>
+        </div>
+        <div class="select-device-column">
+          <select class="select-device-dropdown" id="diskSelect"></select>
+        </div>
+        <div class="start-column">
+          <button class="start-button" style="color:powderblue background-color:grey" id="startProcess">Start</button>
+        </div>
       </div>
     </div>
-
-    <div class="action-row">
-      <div class="action-container">
-        <div class="action" id="writeFile">Write to Disk</div>
-        <div class="action" id="cloneDisk">Clone from Disk</div>
-      </div>
-      <div class="action-container">
-        <select id="diskSelect">
-          <option value="">Select Disk</option>
-          <!-- Disk options will go here -->
-        </select>
-      </div>
-      <div class="action-container">
-        <button id="startProcess">Start</button>
-      </div>
+    <div class="status-row">
+      <progress class="progress-bar" id="progress" width="100%" value="0" max="100"> 0% </progress>
+      <lebal id="status-lebal" style="color:white">0%</lebal>
     </div>
-
-    <div class="progress-row">
-      <div class="progress-bar" id="progres-bar">
-        <div class="progress" style="width: 50%;" id="progress">50%</div>
-      </div>
-    </div>
-
   </div>
-</div>
+</body>
 
 <script src="main.js"></script>
-</body>
+
 </html>
