@@ -5,6 +5,7 @@ const { emit, listen } = window.__TAURI__.event;
 var selected_file = "";
 var selected_disk = "";
 var clone_or_flash = "";
+var target_size = 0;
 var is_writing = false;
 
 function add_storage_device_names() {
@@ -18,7 +19,7 @@ function add_storage_device_names() {
       console.log(device_name);
       var option = document.createElement("option");
       option.text = device_name.model_name;
-      option.value = device_name.device_name;
+      option.value = value;// device_name.device_name;
 
       if (device_name.removable) {
         option.text = option.text + " (Removable)";
@@ -27,7 +28,6 @@ function add_storage_device_names() {
 
       } else {
         option.text = option.text + " (Not Removable)";
-        // option.color = "red";
       }
       x.add(option);
     }
@@ -37,13 +37,14 @@ function add_storage_device_names() {
 function write_file_on_click(e) {
   console.log(e);
   clone_or_flash = "flash";
-
   open({
     multiple: false,
   }).then((res) => {
     console.log(res);
     var filename = res;
-    selected_file = filename;// .replace(/^.*[\\/]/, '');
+    selected_file = filename;
+    var status = document.getElementById("status-lebal");
+    status.innerHTML = `File selected: ${selected_file}`;
   });
 }
 
@@ -62,22 +63,28 @@ async function start_process_on_click(e) {
   if (!is_writing) {
     is_writing = true;
     console.log(e);
-    const command_line = `litho ${clone_or_flash} -f ${selected_file} -d ${selected_disk} -b 16777216`;
+    const command_line = `litho ${clone_or_flash} -f ${selected_file} -d ${selected_disk} -b ${target_size}`;//16777216`;
     console.log(command_line);
-    // updateProgressBar(100);
-    invoke("execute", { operation: clone_or_flash, device: selected_disk, image: selected_file });
-    // invoke("test");
+
+    invoke("execute", { operation: clone_or_flash, device: selected_disk, image: selected_file, size: target_size });
+
     await listen("percent", (event) => {
       console.log(event);
       var status = document.getElementById("status-lebal");
       status.innerHTML = event.payload.percentage + "%";
       updateProgressBar(event.payload.percentage);
+      if (percent == 100) {
+        is_writing = false;
+      }
     });
   }
 }
 
 function select_device_on_click(e) {
-  selected_disk = e.target.value;
+
+  device_details = JSON.parse(e.target.value);
+  selected_disk = device_details.device_name;
+  target_size = device_details.size;
   console.log(selected_disk);
 }
 

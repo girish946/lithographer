@@ -16,6 +16,7 @@ pub struct DeviceInfo {
     pub vendor_name: String,
     pub model_name: String,
     pub removable: u8,
+    pub size: u64,
 }
 
 #[derive(Clone, serde::Serialize)]
@@ -23,16 +24,22 @@ struct Progress {
     percentage: f64,
 }
 
+const BLOCKS: [u64; 14] = [
+    4096, 8192, 16384, 32768, 65536, 131072, 262144, 524288, 1048576, 2097152, 4194304, 8388608,
+    16777216, 33554432,
+];
+
 #[tauri::command]
 async fn execute(
     operation: String,
     device: String,
     image: String,
+    size: u64,
     window: Window,
 ) -> Result<String, String> {
     println!(
-        "operation: {}, device: {}, image: {}",
-        operation, device, image
+        "operation: {}, device: {}, image: {}, size:{}",
+        operation, device, image, size
     );
 
     let callback = |percentage| {
@@ -44,10 +51,23 @@ async fn execute(
             }
         };
     };
+    let mut block_size: u64 = 0;
+    if size < BLOCKS[0] || size > BLOCKS[13] {
+        println!("size is not in the range of 4096 to 33554432");
+        return Err("".to_string());
+    }
+    // calculate the max block size
+    for i in 0..BLOCKS.len() {
+        if size <= BLOCKS[i] {
+            block_size = BLOCKS[i];
+            break;
+        }
+    }
+
     if operation == "flash".to_string() {
-        let _ = litho::flash(image, device, 4096, false, callback);
+        let _ = litho::flash(image, device, block_size as usize, false, callback);
     } else if operation == "clone".to_string() {
-        let _ = litho::clone(device, image, 4096, false, callback);
+        let _ = litho::clone(device, image, block_size as usize, false, callback);
     }
     Ok("".to_string())
 }
@@ -189,6 +209,26 @@ fn get_storage_devices() -> Result<Vec<String>, String> {
                 // println!("removable: {}", removable);
             }
 
+            dev.pop();
+            dev.push("size");
+            let size: u64;
+            size = match fs::read_to_string(dev.clone()) {
+                Ok(size_str) => {
+                    println!("size: {}", size_str);
+                    match size_str.trim().parse::<u64>() {
+                        Ok(s) => s,
+                        Err(e) => {
+                            println!("error occured while parsing size: {}", e);
+                            0
+                        }
+                    }
+                }
+                Err(e) => {
+                    println!("error occured while reading size: {}", e);
+                    0
+                }
+            };
+
             if !device_end_name.is_empty() {
                 let mut dev_path = PathBuf::from("/dev/");
                 dev_path.push(device_end_name);
@@ -199,6 +239,7 @@ fn get_storage_devices() -> Result<Vec<String>, String> {
                             vendor_name: dev_vendor_name,
                             model_name,
                             removable: 1,
+                            size,
                         };
                         let device_json = json!(dev_info).to_string();
                         devices.push(device_json);
@@ -208,6 +249,7 @@ fn get_storage_devices() -> Result<Vec<String>, String> {
                             vendor_name: dev_vendor_name,
                             model_name,
                             removable: 0,
+                            size,
                         };
                         let dev_json = json!(dev_info).to_string();
                         devices.push(dev_json);
