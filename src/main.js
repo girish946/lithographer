@@ -8,28 +8,37 @@ var clone_or_flash = "";
 var target_size = 0;
 var is_writing = false;
 
+var removable_devices = [];
+var non_removable_devices = [];
+
 function add_storage_device_names() {
   invoke("get_storage_devices").then((res) => {
     console.log(res);
-    var x = document.getElementById("diskSelect");
-    res.map(update_disk_options);
-
-    function update_disk_options(value, _index, _array) {
+    var diskSelect = document.getElementById("diskSelect");
+    for (var i = 0; i < res.length; i++) {
+      console.log(res[i]);
+      var value = res[i];
       const device_name = JSON.parse(value); // Parse the JSON string to an object
       console.log(device_name);
       var option = document.createElement("option");
+
       option.text = device_name.model_name;
-      option.value = value;// device_name.device_name;
+      option.value = value;
 
       if (device_name.removable) {
         option.text = option.text + " (Removable)";
-        option.css = "color: green";
-        option.color = "green";
-
+        removable_devices.push(option);
       } else {
         option.text = option.text + " (Not Removable)";
+        non_removable_devices.push(option);
       }
-      x.add(option);
+    }
+
+    for (var i = 0; i < removable_devices.length; i++) {
+      diskSelect.appendChild(removable_devices[i]);
+    }
+    for (var i = 0; i < non_removable_devices.length; i++) {
+      diskSelect.appendChild(non_removable_devices[i]);
     }
   });
 }
