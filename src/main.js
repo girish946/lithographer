@@ -40,6 +40,7 @@ function add_storage_device_names() {
     for (var i = 0; i < non_removable_devices.length; i++) {
       diskSelect.appendChild(non_removable_devices[i]);
     }
+    diskSelect.selectedIndex = 0;
   });
 }
 
@@ -90,10 +91,13 @@ async function start_process_on_click(e) {
 }
 
 function select_device_on_click(e) {
-
+  if (e.target.value == "default") {
+    return;
+  }
   device_details = JSON.parse(e.target.value);
   selected_disk = device_details.device_name;
   target_size = device_details.size;
+  console.log("selested device:" + device_details);
   console.log(selected_disk);
 }
 

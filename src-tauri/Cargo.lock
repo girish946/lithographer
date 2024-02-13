@@ -1562,10 +1562,12 @@ checksum = "01cda141df6706de531b6c46c3a33ecca755538219bd484262fa09410c13539c"
 [[package]]
 name = "litho"
 version = "0.1.0"
-source = "git+https://github.com/girish946/litho#1a6aafe37a3ef64a3e75d4850171ed314a5a88be"
+source = "git+https://github.com/girish946/litho#170bb94bc2f8da41c9070a99cecedb296e85fbd5"
 dependencies = [
  "clap 4.4.18",
  "libc",
+ "serde",
+ "serde_json",
  "sha2",
  "tokio",
 ]

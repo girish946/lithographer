@@ -17,11 +17,13 @@
       <div class="central-control-row">
         <div class="left-text-column">
           <lebal class="flash-image" id="writeFile">Flash Image</lebal>
-          <lebal class="clone-image" id="cloneDiskToFile">Clone to File</lebal>
+          <lebal class="clone-image" id="cloneDiskToFile">Clone Image</lebal>
           <!--  <lebal class="clone-device">Clone to Device</lebal> -->
         </div>
         <div class="select-device-column">
-          <select class="select-device-dropdown" id="diskSelect"></select>
+          <select class="select-device-dropdown" id="diskSelect">
+            <option value="default">Select a device</option>
+          </select>
         </div>
         <div class="start-column">
           <button class="start-button" style="color:powderblue background-color:grey" id="startProcess">Start</button>
