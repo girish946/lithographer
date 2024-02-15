@@ -44,6 +44,18 @@ function add_storage_device_names() {
   });
 }
 
+function get_root() {
+  invoke("get_root").then((res) => {
+    console.log(res);
+    var status = document.getElementById("status-lebal");
+    if (res) {
+      status.innerHTML = "Running as root";
+    } else {
+      status.innerHTML = "Not running as root";
+    }
+  });
+}
+
 function write_file_on_click(e) {
   console.log(e);
   clone_or_flash = "flash";
@@ -121,5 +133,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
   var disk_select_element = document.getElementById("diskSelect");
   disk_select_element.addEventListener("change", select_device_on_click);
+
+  get_root();
 });
 

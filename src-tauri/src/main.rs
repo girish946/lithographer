@@ -2,6 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use litho;
+use nix::unistd::Uid;
 use serde::{Deserialize, Serialize};
 use std::process;
 use tauri::Window;
@@ -24,6 +25,16 @@ const BLOCKS: [u64; 14] = [
     4096, 8192, 16384, 32768, 65536, 131072, 262144, 524288, 1048576, 2097152, 4194304, 8388608,
     16777216, 33554432,
 ];
+
+#[tauri::command]
+async fn get_root() -> Result<bool, String> {
+    if !Uid::effective().is_root() {
+        println!("not root");
+        Ok(false)
+    } else {
+        Ok(true)
+    }
+}
 
 #[tauri::command]
 async fn execute(
@@ -139,7 +150,11 @@ fn main() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_storage_devices, execute])
+        .invoke_handler(tauri::generate_handler![
+            get_storage_devices,
+            execute,
+            get_root
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
