@@ -39,6 +39,8 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tauriScript: bash scripts/tauri-build.sh
 
       - uses: actions/upload-artifact@v4
         with:
