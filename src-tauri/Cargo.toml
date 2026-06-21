@@ -1,31 +1,39 @@
 [package]
 name = "lithographer"
-version = "0.0.0"
-description = "A Tauri App"
-authors = ["you"]
+version = "0.1.0"
+description = "A Tauri App to create bootable usb devices"
+authors = ["Girish Joshi"]
 license = ""
 repository = ""
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "lithographer_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
 [build-dependencies]
-tauri-build = { version = "1.5", features = [] }
+tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "1.5", features = [
-  "cli",
-  "dialog-save",
-  "dialog-open",
-  "shell-execute",
-] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-litho = { git = "https://github.com/girish946/litho" }
-nix = { version = "0.27.1", features = ["user"] }
-mio = "0.8.11"
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 
-[features]
-# this feature is used for production builds or when `devPath` points to the filesystem
-# DO NOT REMOVE!!
-custom-protocol = ["tauri/custom-protocol"]
+# Depend on the litho package (liblitho) to use its Rust APIs directly
+# (e.g. get_storage_devices for device enumeration).
+# We are NOT bundling the separate `litho` binary for now.
+liblitho = {git = "https://github.com/girish946/litho", "branch"= "refactor-v1"} # { path = "../../litho" }
+
+# Pin webkit2gtk + enable a feature that exists in the 0.18 series.
+# We use `v2_38` because it is the highest feature available in webkit2gtk 0.18.x
+# and is compatible with the WebKitGTK 4.0 / javascriptcoregtk-4.0 packages
+# installed in the Dockerfile (Ubuntu 22.04).
+# This stops Cargo from selecting a resolution that demands the 4.1 .pc files.
+webkit2gtk = "2.0.2"

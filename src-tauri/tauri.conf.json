@@ -1,95 +1,35 @@
 {
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "lithographer",
+  "version": "0.1.0",
+  "identifier": "com.girish.lithographer",
   "build": {
-    "beforeDevCommand": "",
-    "beforeBuildCommand": "",
-    "devPath": "../src",
-    "distDir": "../src",
-    "withGlobalTauri": true
+    "frontendDist": "../src",
+    "beforeBundleCommand": "bash -c '\n  for profile in debug release; do\n    for bundler in appimage deb rpm; do\n      APPDIR=\"target/${profile}/bundle/${bundler}/lithographer.AppDir\"\n      if [ -d \"${APPDIR}\" ]; then\n        # Litho binary bundling is commented out for now.\n        # We depend on the litho Rust package (liblitho) directly for APIs instead.\n        # The code below for injecting resources/litho is disabled.\n        #\n        # for sub in \"\" \"resources\"; do\n        #   DESTDIR=\"${APPDIR}/usr/lib/lithographer${sub:+/}${sub}\"\n        #   mkdir -p \"${DESTDIR}\"\n        #   if [ -f \"src-tauri/resources/litho\" ]; then\n        #     cp -f \"src-tauri/resources/litho\" \"${DESTDIR}/litho\"\n        #     chmod +x \"${DESTDIR}/litho\"\n        #     echo \"Injected litho into ${DESTDIR}/litho\"\n        #   fi\n        # done\n        echo \"Litho binary bundling skipped (using liblitho crate dep instead)\"\n      fi\n    done\n  done\n' || true"
   },
-  "package": {
-    "productName": "lithographer",
-    "version": "0.0.1"
-  },
-  "tauri": {
-    "allowlist": {
-      "all": false,
-      "fs": {
-        "all": false
-      },
-      "dialog": {
-        "all": false,
-        "open": true,
-        "save": true
-      },
-      "shell": {
-        "all": false,
-        "execute": true
-      }
-    },
-    "bundle": {
-      "active": true,
-      "targets": "all",
-      "identifier": "com.lithographer.dev",
-      "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png",
-        "icons/128x128@2x.png",
-        "icons/icon.icns",
-        "icons/icon.ico"
-      ]
-    },
-    "cli": {
-      "description": "",
-      "longDescription": "",
-      "beforeHelp": "",
-      "afterHelp": "",
-      "args": [],
-      "subcommands": {
-        "clone": {
-          "args": [
-            {
-              "name": "file",
-              "short": "f",
-              "takesValue": true,
-              "multiple": false
-            },
-            {
-              "name": "disk",
-              "short": "d",
-              "takesValue": true,
-              "multiple": false
-            }
-          ]
-        },
-        "flash": {
-          "args": [
-            {
-              "name": "file",
-              "short": "f",
-              "takesValue": true,
-              "multiple": false
-            },
-            {
-              "name": "disk",
-              "short": "d",
-              "takesValue": true,
-              "multiple": false
-            }
-          ]
-        }
-      }
-    },
-    "security": {
-      "csp": null
-    },
+  "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
-        "fullscreen": false,
-        "resizable": false,
         "title": "lithographer",
-        "width": 1215,
+        "width": 800,
         "height": 600
       }
-    ]
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "resources": []
   }
 }

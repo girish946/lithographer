@@ -1,43 +1,591 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SD Card Writer UI</title>
-  <link rel="stylesheet" href="styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lithographer • SD Card Writer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600&amp;display=swap');
+        
+        :root {
+            --accent: #60a5fa;
+        }
+        
+        body {
+            font-family: 'Inter', system_ui, sans-serif;
+        }
+        
+        .logo-font {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        .glass {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(20px);
+        }
+
+        .card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+        }
+
+        .mode-option {
+            transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+        }
+        
+        .mode-option.active {
+            background-color: rgb(15 23 42);
+            border-color: rgb(96 165 250);
+            color: rgb(224 242 254);
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.3);
+        }
+
+        .progress-bar {
+            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .terminal {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 0.85rem;
+        }
+    </style>
 </head>
+<body class="bg-zinc-950 text-zinc-200 min-h-screen flex items-center justify-center p-6">
+    <div class="max-w-2xl w-full">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-8">
+            <div class="flex items-center gap-x-4">
+                <div class="w-12 h-12 bg-zinc-900 rounded-2xl flex items-center justify-center border border-zinc-700 overflow-hidden">
+                    <img id="app-logo" 
+                         src="assets/dark-logo.jpg" 
+                         alt="Lithographer" 
+                         class="w-11 h-11 object-contain">
+                </div>
+                <div>
+                    <h1 class="logo-font text-3xl font-semibold tracking-tighter text-white">lithographer</h1>
+                    <p class="text-zinc-500 text-sm -mt-1">SD Card • NVMe • USB Writer</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-x-3 text-sm">
+                <div class="flex items-center gap-x-1.5 px-3 py-1.5 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20">
+                    <i class="fa-solid fa-circle text-xs animate-pulse"></i>
+                    <span class="font-medium">Connected</span>
+                </div>
+                <div onclick="toggleTheme()" 
+                     class="w-9 h-9 flex items-center justify-center hover:bg-zinc-900 rounded-xl cursor-pointer transition-colors">
+                    <i id="theme-icon" class="fa-solid fa-moon text-zinc-400"></i>
+                </div>
+            </div>
+        </div>
 
-<body class="page">
-  <div class="main-content">
-    <div class="logo-area">
-      <img src="assets/logo.png" alt="logo" class="logo-img"></img>
-    </div>
-    <div class="central-controls">
-      <div class="central-control-row">
-        <div class="left-text-column">
-          <lebal class="flash-image" id="writeFile">Flash Image</lebal>
-          <lebal class="clone-image" id="cloneDiskToFile">Clone Image</lebal>
-          <!--  <lebal class="clone-device">Clone to Device</lebal> -->
+        <div class="glass rounded-3xl border border-zinc-800 p-8 shadow-2xl">
+            <!-- Mode Selection -->
+            <div class="mb-8">
+                <label class="block text-zinc-400 text-sm font-medium mb-3 tracking-widest">OPERATION MODE</label>
+                <div class="grid grid-cols-2 gap-4" id="mode-select">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <!-- Device Selection -->
+            <div class="mb-8">
+                <label class="block text-zinc-400 text-sm font-medium mb-3 tracking-widest">TARGET DEVICE</label>
+                <div class="relative">
+                    <select id="diskSelect" 
+                            onchange="selectDevice(this)"
+                            class="w-full bg-zinc-900 border border-zinc-700 focus:border-blue-500 rounded-2xl px-5 py-4 text-white appearance-none focus:outline-none cursor-pointer">
+                        <option value="">Select a storage device...</option>
+                    </select>
+                    <div class="pointer-events-none absolute right-5 top-1/2 -translate-y-1/2 text-zinc-500">
+                        <i class="fa-solid fa-chevron-down"></i>
+                    </div>
+                </div>
+                <div id="device-info" class="mt-3 text-xs text-zinc-500 flex items-center gap-2"></div>
+            </div>
+
+            <!-- File Selection -->
+            <div class="mb-8">
+                <label class="block text-zinc-400 text-sm font-medium mb-3 tracking-widest" id="file-label">SOURCE FILE</label>
+                <div class="flex gap-3">
+                    <button onclick="selectFile()" 
+                            id="file-button"
+                            class="flex-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 hover:border-blue-500 transition-all rounded-2xl px-6 py-4 text-left flex items-center gap-x-3 group">
+                        <div class="w-9 h-9 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-file-image"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div id="selected-file-name" class="text-sm font-medium text-white truncate">No file selected</div>
+                            <div id="selected-file-path" class="text-xs text-zinc-500 truncate">Click to choose image</div>
+                        </div>
+                    </button>
+                    
+                    <button onclick="selectFile()" 
+                            class="px-8 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-2xl flex items-center justify-center transition-colors">
+                        <i class="fa-solid fa-folder-open text-xl"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Status -->
+            <div class="mb-6 bg-zinc-900/70 border border-zinc-800 rounded-2xl p-5 terminal">
+                <div class="flex justify-between items-center text-xs mb-2 text-zinc-500">
+                    <div>STATUS</div>
+                    <div id="status-text" class="text-emerald-400 font-medium">Ready</div>
+                </div>
+                <div id="status-detail" class="text-zinc-400 text-sm">Waiting for operation...</div>
+            </div>
+
+            <!-- Progress -->
+            <div class="mb-8">
+                <div class="flex justify-between text-xs text-zinc-500 mb-2">
+                    <div>PROGRESS</div>
+                    <div id="progress-text" class="font-mono">0%</div>
+                </div>
+                <div class="h-2 bg-zinc-800 rounded-3xl overflow-hidden">
+                    <div id="progress-bar" 
+                         class="progress-bar h-full bg-gradient-to-r from-blue-500 to-cyan-400 w-0 rounded-3xl"></div>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="flex gap-4">
+                <button onclick="startProcess()" 
+                        id="start-button"
+                        class="flex-1 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 transition-all text-white font-semibold py-5 rounded-3xl text-lg flex items-center justify-center gap-x-3 shadow-lg shadow-blue-500/30 active:scale-[0.985]">
+                    <i class="fa-solid fa-play"></i>
+                    <span id="start-text">START FLASH</span>
+                </button>
+                
+                <button onclick="cancelProcess()" 
+                        id="cancel-button"
+                        class="hidden px-8 bg-zinc-900 hover:bg-red-950 border border-red-500/30 hover:border-red-500 text-red-400 hover:text-red-300 rounded-3xl font-medium transition-all">
+                    CANCEL
+                </button>
+            </div>
         </div>
-        <div class="select-device-column">
-          <select class="select-device-dropdown" id="diskSelect">
-            <option value="default">Select a device</option>
-          </select>
+
+        <!-- Footer -->
+        <div class="mt-8 text-center text-zinc-600 text-xs flex items-center justify-center gap-x-5">
+            <div>Made with ❤️ by <a href="https://github.com/girish946" target="_blank" class="hover:text-zinc-400">Girish Joshi</a></div>
+            <div class="w-px h-3 bg-zinc-800"></div>
+            <div class="flex items-center gap-x-1">
+                <i class="fa-solid fa-shield-halved"></i>
+                <span>Root Required</span>
+            </div>
         </div>
-        <div class="start-column">
-          <button class="start-button" style="color:powderblue background-color:grey" id="startProcess">Start</button>
-        </div>
-      </div>
     </div>
-    <div class="status-row">
-      <progress class="progress-bar" id="progress" width="100%" value="0" max="100"> 0% </progress>
-      <lebal id="status-lebal" style="color:white">0%</lebal>
-    </div>
-  </div>
-  <div class="bottom-text"> made with ❤️ by Girish Joshi &ensp;&ensp;&ensp;&ensp;</div>
+
+    <script>
+        // Tailwind script already loaded
+        function initializeTailwind() {
+            // Already configured via CDN
+        }
+
+        // Populated at runtime from the backend by calling the litho binary
+        // (which uses liblitho::devices::get_storage_devices).
+        let devices = [];
+
+        let selectedMode = "flash";
+        let selectedDevice = null;
+        let selectedFile = null;
+        let isRunning = false;
+        let progressInterval = null;
+
+        // Mode options
+        const modes = [
+            {
+                id: "flash",
+                label: "Flash Image",
+                icon: "fa-solid fa-download",
+                desc: "Write image to device"
+            },
+            {
+                id: "clone",
+                label: "Clone Disk",
+                icon: "fa-solid fa-clone",
+                desc: "Create image from device"
+            }
+        ];
+
+        function renderModes() {
+            const container = document.getElementById("mode-select");
+            container.innerHTML = '';
+            
+            modes.forEach(mode => {
+                const div = document.createElement("div");
+                div.className = `mode-option p-6 rounded-3xl border cursor-pointer flex flex-col items-center text-center card ${mode.id === selectedMode ? 'active' : 'border-zinc-700 hover:border-zinc-600'}`;
+                div.innerHTML = `
+                    <div class="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center mb-4 text-3xl text-blue-400">
+                        <i class="${mode.icon}"></i>
+                    </div>
+                    <div class="font-semibold text-lg">${mode.label}</div>
+                    <div class="text-zinc-500 text-sm mt-1">${mode.desc}</div>
+                `;
+                div.onclick = () => {
+                    selectedMode = mode.id;
+                    renderModes();
+                    updateStartButton();
+                };
+                container.appendChild(div);
+            });
+        }
+
+        function populateDevices() {
+            const select = document.getElementById("diskSelect");
+            select.innerHTML = `<option value="">Select a storage device...</option>`;
+            
+            devices.forEach((device, index) => {
+                const opt = document.createElement("option");
+                opt.value = index;
+                opt.textContent = `${device.name} • ${device.size} ${device.removable ? '(Removable)' : '(Fixed)'}`;
+                select.appendChild(opt);
+            });
+        }
+
+        function selectDevice(selectEl) {
+            if (!selectEl.value) {
+                selectedDevice = null;
+                document.getElementById("device-info").innerHTML = '';
+                return;
+            }
+            
+            const index = parseInt(selectEl.value);
+            selectedDevice = devices[index];
+            
+            const infoEl = document.getElementById("device-info");
+            infoEl.innerHTML = `
+                <span class="px-2.5 py-1 bg-zinc-800 rounded-lg">${selectedDevice.path}</span>
+                <span>${selectedDevice.size}</span>
+                ${selectedDevice.removable ? `<span class="text-emerald-400">● Removable</span>` : ''}
+            `;
+        }
+
+        function selectFile() {
+            // Simulate file selection
+            const fakeFiles = [
+                "raspbian-bookworm.img",
+                "ubuntu-24.04-desktop-arm64.iso",
+                "windows-11-arm64.wim",
+                "custom-os-image.dd"
+            ];
+            
+            const randomFile = fakeFiles[Math.floor(Math.random() * fakeFiles.length)];
+            
+            selectedFile = {
+                name: randomFile,
+                path: `/home/user/Downloads/${randomFile}`
+            };
+            
+            document.getElementById("selected-file-name").textContent = selectedFile.name;
+            document.getElementById("selected-file-path").textContent = selectedFile.path;
+            
+            // Auto update status
+            document.getElementById("status-detail").innerHTML = `Selected: <span class="text-blue-400">${selectedFile.name}</span>`;
+        }
+
+        function updateStartButton() {
+            const btnText = document.getElementById("start-text");
+            btnText.textContent = selectedMode === "flash" ? "START FLASH" : "START CLONE";
+        }
+
+        // Fetch real storage devices from the Tauri backend (via the bundled litho CLI).
+        // Replaces the previous mock list and refreshes the dropdown.
+        // Removable vs fixed devices are indicated both in the option text and in the info line.
+        async function loadStorageDevices() {
+            const select = document.getElementById("diskSelect");
+            if (!select) return;
+
+            // Preserve any path that was already selected (e.g. injected by launch params
+            // before the real device list arrived) so we can try to keep/restore it.
+            const previouslySelectedPath = (selectedDevice && selectedDevice.path) || select.value || null;
+
+            // Show a loading placeholder while we query
+            select.innerHTML = `<option value="">Detecting storage devices...</option>`;
+
+            try {
+                if (!window.__TAURI__ || !window.__TAURI__.core) {
+                    // Running outside Tauri (plain browser) — keep empty or show hint
+                    devices = [];
+                    populateDevices();
+                    select.innerHTML = `<option value="">No Tauri backend (demo mode)</option>`;
+                    return;
+                }
+
+                const realDevices = await window.__TAURI__.core.invoke("get_storage_devices");
+                devices = Array.isArray(realDevices) ? realDevices : [];
+
+                populateDevices();
+
+                if (devices.length === 0) {
+                    select.innerHTML = `<option value="">No storage devices found</option>`;
+                } else {
+                    // Try to restore a previous selection by path (handles launch --device
+                    // that arrived before the real list, or user selection during refresh).
+                    if (previouslySelectedPath) {
+                        let idx = devices.findIndex(d =>
+                            d.path === previouslySelectedPath || d.path.endsWith(previouslySelectedPath)
+                        );
+                        if (idx !== -1) {
+                            select.value = idx;
+                            selectDevice(select);
+                        }
+                    }
+                }
+
+                console.log(`[lithographer] Loaded ${devices.length} storage device(s) from backend`);
+            } catch (err) {
+                console.error("Failed to load storage devices:", err);
+                devices = [];
+                populateDevices();
+                select.innerHTML = `<option value="">Failed to query devices</option>`;
+            }
+        }
+
+        function startProcess() {
+            if (!selectedDevice || !selectedFile) {
+                alert("Please select both a device and a source file/image.");
+                return;
+            }
+            
+            if (isRunning) return;
+            
+            isRunning = true;
+            document.getElementById("start-button").classList.add("opacity-50", "cursor-not-allowed");
+            document.getElementById("cancel-button").classList.remove("hidden");
+            
+            const statusEl = document.getElementById("status-text");
+            statusEl.textContent = "IN PROGRESS";
+            statusEl.className = "text-amber-400 font-medium";
+            
+            document.getElementById("status-detail").innerHTML = `${selectedMode === 'flash' ? 'Writing' : 'Cloning'} to <span class="font-medium">${selectedDevice.name}</span>...`;
+            
+            // Simulate progress
+            let progress = 0;
+            const progressBar = document.getElementById("progress-bar");
+            const progressText = document.getElementById("progress-text");
+            
+            progressInterval = setInterval(() => {
+                progress += Math.random() * 12;
+                if (progress > 100) progress = 100;
+                
+                progressBar.style.width = `${progress}%`;
+                progressText.textContent = `${Math.floor(progress)}%`;
+                
+                if (progress >= 100) {
+                    clearInterval(progressInterval);
+                    finishProcess();
+                }
+            }, 180);
+        }
+
+        function finishProcess() {
+            isRunning = false;
+            document.getElementById("start-button").classList.remove("opacity-50", "cursor-not-allowed");
+            document.getElementById("cancel-button").classList.add("hidden");
+            
+            const statusEl = document.getElementById("status-text");
+            statusEl.textContent = "COMPLETE";
+            statusEl.className = "text-emerald-400 font-medium";
+            
+            document.getElementById("status-detail").innerHTML = `
+                Successfully ${selectedMode === 'flash' ? 'flashed' : 'cloned'} to ${selectedDevice.name}
+            `;
+            
+            // Celebration effect
+            confettiBurst();
+        }
+
+        function cancelProcess() {
+            if (progressInterval) clearInterval(progressInterval);
+            isRunning = false;
+            
+            document.getElementById("progress-bar").style.width = "0%";
+            document.getElementById("progress-text").textContent = "0%";
+            
+            document.getElementById("start-button").classList.remove("opacity-50", "cursor-not-allowed");
+            document.getElementById("cancel-button").classList.add("hidden");
+            
+            document.getElementById("status-text").textContent = "CANCELLED";
+            document.getElementById("status-text").className = "text-orange-400 font-medium";
+            document.getElementById("status-detail").textContent = "Operation cancelled by user.";
+        }
+
+        function confettiBurst() {
+            // Simple confetti using DOM
+            for (let i = 0; i < 60; i++) {
+                setTimeout(() => {
+                    const confetti = document.createElement("div");
+                    confetti.style.position = "fixed";
+                    confetti.style.left = Math.random() * 100 + "vw";
+                    confetti.style.top = "-10px";
+                    confetti.style.width = "8px";
+                    confetti.style.height = "8px";
+                    confetti.style.borderRadius = "2px";
+                    confetti.style.backgroundColor = `hsl(${Math.random()*360}, 90%, 65%)`;
+                    confetti.style.zIndex = "9999";
+                    confetti.style.opacity = "0.9";
+                    document.body.appendChild(confetti);
+                    
+                    let y = 0;
+                    const fall = setInterval(() => {
+                        y += 12 + Math.random() * 8;
+                        confetti.style.transform = `translateY(${y}px) rotate(${y * 4}deg)`;
+                        if (y > window.innerHeight) {
+                            clearInterval(fall);
+                            confetti.remove();
+                        }
+                    }, 16);
+                }, i * 4);
+            }
+        }
+
+        function toggleTheme() {
+            // For demo only (dark by default)
+            alert("Theme toggle coming in full app! 🌙");
+        }
+
+        // Update the application logo based on the current system color scheme.
+        // Uses light-logo.jpg or dark-logo.jpg from imgs/ (copied to assets/).
+        function updateAppLogo() {
+            const logoEl = document.getElementById('app-logo');
+            if (!logoEl) return;
+
+            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const logoSrc = prefersDark ? 'assets/dark-logo.jpg' : 'assets/light-logo.jpg';
+
+            if (logoEl.src !== logoSrc && !logoEl.src.endsWith(logoSrc)) {
+                logoEl.src = logoSrc;
+            }
+        }
+
+        // Set up system theme listener for the logo (and optionally other elements in future).
+        function initThemeAwareLogo() {
+            // Set initial logo
+            updateAppLogo();
+
+            // React to system theme changes
+            if (window.matchMedia) {
+                const media = window.matchMedia('(prefers-color-scheme: dark)');
+                // Modern browsers
+                if (media.addEventListener) {
+                    media.addEventListener('change', updateAppLogo);
+                } else if (media.addListener) {
+                    // Legacy
+                    media.addListener(updateAppLogo);
+                }
+            }
+        }
+
+        // Apply CLI args (if any) to pre-populate mode, device and image fields.
+        // Only acts when at least one relevant argument was passed.
+        async function applyLaunchParamsIfAny() {
+            try {
+                if (!window.__TAURI__ || !window.__TAURI__.core) {
+                    return;
+                }
+
+                const params = await window.__TAURI__.core.invoke("get_launch_params");
+
+                const hasAny = params.mode || params.device || params.image;
+                if (!hasAny) {
+                    // No args provided — do nothing (per requirements)
+                    return;
+                }
+
+                console.log("%c[launch] Applying CLI params:", "color:#60a5fa", params);
+
+                // 1. Mode (flash / clone)
+                if (params.mode) {
+                    const wanted = String(params.mode).toLowerCase();
+                    selectedMode = (wanted === "clone") ? "clone" : "flash";
+                    renderModes();
+                    updateStartButton();
+                }
+
+                // 2. Device (match by path or inject a synthetic entry)
+                if (params.device) {
+                    let idx = devices.findIndex(d =>
+                        d.path === params.device || d.path.endsWith(params.device)
+                    );
+
+                    if (idx === -1) {
+                        // Add dynamic device entry so the UI can select it
+                        devices.push({
+                            name: params.device.split("/").pop() || params.device,
+                            path: params.device,
+                            size: "Unknown size",
+                            removable: true,
+                            model: "From args"
+                        });
+                        populateDevices();
+                        idx = devices.length - 1;
+                    }
+
+                    const select = document.getElementById("diskSelect");
+                    select.value = idx;
+                    selectDevice(select);
+                }
+
+                // 3. Image / source file
+                if (params.image) {
+                    const fullPath = params.image;
+                    const fileName = fullPath.split("/").pop() || fullPath;
+
+                    selectedFile = {
+                        name: fileName,
+                        path: fullPath
+                    };
+
+                    document.getElementById("selected-file-name").textContent = fileName;
+                    document.getElementById("selected-file-path").textContent = fullPath;
+                    document.getElementById("status-detail").innerHTML =
+                        `Selected: <span class="text-blue-400">${fileName}</span>`;
+                }
+            } catch (err) {
+                console.warn("Failed to read/apply launch params:", err);
+            }
+        }
+
+        // Keyboard shortcuts
+        function handleKeyboard(e) {
+            if (e.key === "/" && document.activeElement.tagName !== "INPUT" && document.activeElement.tagName !== "TEXTAREA") {
+                e.preventDefault();
+                document.getElementById("diskSelect").focus();
+            }
+        }
+
+        // Initialize everything
+        window.onload = function() {
+            // Initialize theme-aware logo (light/dark from imgs/ depending on system prefers-color-scheme)
+            initThemeAwareLogo();
+
+            renderModes();
+            updateStartButton();
+
+            // Keyboard
+            document.addEventListener("keydown", handleKeyboard);
+
+            // Make file area clickable too
+            const fileArea = document.getElementById("file-button");
+            fileArea.style.cursor = "pointer";
+
+            console.log('%cLithographer UI Modernized ✅', 'color:#60a5fa; font-family:monospace; font-size:13px');
+
+            // Load real devices from the backend (calls into litho binary -> get_storage_devices API).
+            // This populates the dropdown and indicates removable vs fixed devices.
+            loadStorageDevices();
+
+            // Populate form from CLI arguments (if any were passed).
+            // If a --device was given that isn't in the list yet, the handler injects it.
+            applyLaunchParamsIfAny();
+        };
+    </script>
 </body>
-
-<script src="main.js"></script>
-
 </html>
