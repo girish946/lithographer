@@ -25,6 +25,7 @@ tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+rfd = "0.15"
 
 # Depend on the litho package (liblitho) to use its Rust APIs directly
 # (e.g. get_storage_devices for device enumeration).

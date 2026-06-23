@@ -11,8 +11,11 @@
     "windows": [
       {
         "title": "lithographer",
-        "width": 800,
-        "height": 600
+        "width": 920,
+        "height": 720,
+        "minWidth": 300,
+        "minHeight": 360,
+        "resizable": true
       }
     ],
     "security": {

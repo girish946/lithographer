@@ -8,42 +8,174 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600&amp;display=swap');
-        
+
         :root {
             --accent: #60a5fa;
         }
-        
-        body {
-            font-family: 'Inter', system_ui, sans-serif;
+
+        html {
+            height: 100%;
         }
-        
+
+        html[data-theme="dark"] {
+            --bg: #09090b;
+            --text: #e4e4e7;
+            --text-strong: #ffffff;
+            --text-muted: #a1a1aa;
+            --text-faint: #71717a;
+            --surface: #18181b;
+            --surface-raised: #27272a;
+            --surface-hover: #3f3f46;
+            --border: #3f3f46;
+            --border-subtle: #27272a;
+            --card: rgba(15, 23, 42, 0.95);
+            --chip: #27272a;
+            --icon-btn-hover: #18181b;
+            --footer-divider: #27272a;
+            --mode-idle-bg: transparent;
+            --mode-idle-border: #3f3f46;
+            --mode-idle-hover: #52525b;
+            --mode-active-bg: rgb(15, 23, 42);
+            --mode-active-border: #60a5fa;
+            --mode-active-text: #e0f2fe;
+            --badge-unknown-bg: rgba(39, 39, 42, 0.8);
+            --badge-unknown-text: #a1a1aa;
+            --badge-unknown-border: #3f3f46;
+        }
+
+        html[data-theme="light"] {
+            --bg: #f4f4f5;
+            --text: #3f3f46;
+            --text-strong: #09090b;
+            --text-muted: #52525b;
+            --text-faint: #71717a;
+            --surface: #ffffff;
+            --surface-raised: #fafafa;
+            --surface-hover: #f4f4f5;
+            --border: #d4d4d8;
+            --border-subtle: #e4e4e7;
+            --card: rgba(255, 255, 255, 0.96);
+            --chip: #f4f4f5;
+            --icon-btn-hover: #e4e4e7;
+            --footer-divider: #d4d4d8;
+            --mode-idle-bg: #fafafa;
+            --mode-idle-border: #d4d4d8;
+            --mode-idle-hover: #a1a1aa;
+            --mode-active-bg: #eff6ff;
+            --mode-active-border: #3b82f6;
+            --mode-active-text: #1d4ed8;
+            --badge-unknown-bg: #f4f4f5;
+            --badge-unknown-text: #71717a;
+            --badge-unknown-border: #d4d4d8;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            min-height: 100%;
+            height: auto;
+            overflow-y: auto;
+            overflow-x: hidden;
+            background-color: var(--bg);
+            color: var(--text);
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+
         .logo-font {
             font-family: 'Space Grotesk', sans-serif;
         }
 
+        .theme-title { color: var(--text-strong); }
+        .theme-muted { color: var(--text-faint); }
+        .theme-label { color: var(--text-muted); }
+        .theme-footer { color: var(--text-faint); }
+        .theme-footer a:hover { color: var(--text-muted); }
+
         .glass {
-            background: rgba(15, 23, 42, 0.95);
+            background: var(--card);
             backdrop-filter: blur(20px);
+            border-color: var(--border-subtle) !important;
+            transition: background-color 0.2s ease, border-color 0.2s ease;
         }
+
+        .theme-select,
+        .theme-file-btn,
+        .theme-file-btn-secondary {
+            background-color: var(--surface);
+            border-color: var(--border);
+            color: var(--text-strong);
+        }
+
+        .theme-file-btn:hover,
+        .theme-file-btn-secondary:hover {
+            background-color: var(--surface-hover);
+            border-color: #3b82f6;
+        }
+
+        .theme-status-panel {
+            background-color: color-mix(in srgb, var(--surface) 70%, transparent);
+            border-color: var(--border-subtle);
+        }
+
+        .theme-progress-track { background-color: var(--surface-raised); }
+        .theme-icon-btn:hover { background-color: var(--icon-btn-hover); }
+        .theme-chip { background-color: var(--chip); }
+        .theme-footer-divider { background-color: var(--footer-divider); }
+        .theme-cancel-btn {
+            background-color: var(--surface);
+            border-color: color-mix(in srgb, #ef4444 30%, transparent);
+        }
+        .theme-cancel-btn:hover {
+            background-color: #fef2f2;
+            border-color: #ef4444;
+        }
+
+        html[data-theme="dark"] .theme-cancel-btn:hover {
+            background-color: #450a0a;
+        }
+
+        .main-logo-wrap {
+            background-color: var(--surface);
+            border-color: var(--border);
+        }
+
+        .theme-icon-btn { color: var(--text-muted); }
 
         .card {
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        
-        .card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+
+        @media (hover: hover) {
+            .card:hover {
+                transform: translateY(-4px);
+                box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+            }
         }
 
         .mode-option {
             transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
         }
-        
+
+        .mode-option {
+            background-color: var(--mode-idle-bg);
+            border-color: var(--mode-idle-border);
+            color: var(--text);
+        }
+
+        .mode-option:not(.active):hover {
+            border-color: var(--mode-idle-hover);
+        }
+
         .mode-option.active {
-            background-color: rgb(15 23 42);
-            border-color: rgb(96 165 250);
-            color: rgb(224 242 254);
-            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.3);
+            background-color: var(--mode-active-bg);
+            border-color: var(--mode-active-border);
+            color: var(--mode-active-text);
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--mode-active-border) 30%, transparent);
+        }
+
+        .privilege-badge--unknown {
+            background-color: var(--badge-unknown-bg);
+            color: var(--badge-unknown-text);
+            border-color: var(--badge-unknown-border);
         }
 
         .progress-bar {
@@ -52,129 +184,155 @@
 
         .terminal {
             font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-            font-size: 0.85rem;
+            font-size: clamp(0.75rem, 2.5vw, 0.85rem);
+        }
+
+        .app-shell {
+            width: 100%;
+            max-width: min(48rem, 100%);
+        }
+
+        .section-block {
+            margin-bottom: 1.25rem;
+        }
+
+        @media (min-width: 640px) {
+            .section-block {
+                margin-bottom: 1.75rem;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .mode-option .mode-icon-wrap {
+                width: 2.5rem;
+                height: 2.5rem;
+                font-size: 1.25rem;
+            }
         }
     </style>
 </head>
-<body class="bg-zinc-950 text-zinc-200 min-h-screen flex items-center justify-center p-6">
-    <div class="max-w-2xl w-full">
+<body>
+    <div class="app-shell mx-auto w-full px-3 sm:px-6 lg:px-8 py-3 sm:py-4 flex flex-col gap-4 sm:gap-6">
         <!-- Header -->
-        <div class="flex items-center justify-between mb-8">
-            <div class="flex items-center gap-x-4">
-                <div class="w-12 h-12 bg-zinc-900 rounded-2xl flex items-center justify-center border border-zinc-700 overflow-hidden">
-                    <img id="app-logo" 
-                         src="assets/dark-logo.jpg" 
-                         alt="Lithographer" 
-                         class="w-11 h-11 object-contain">
+        <div class="main-header flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between shrink-0">
+            <div class="flex items-center gap-3 sm:gap-4 min-w-0">
+                <div class="main-logo-wrap w-14 h-14 sm:w-16 sm:h-16 shrink-0 rounded-2xl flex items-center justify-center border overflow-hidden">
+                    <img id="app-logo"
+                         src="assets/dark-logo.jpg"
+                         alt="Lithographer"
+                         class="w-12 h-12 sm:w-14 sm:h-14 object-contain">
                 </div>
-                <div>
-                    <h1 class="logo-font text-3xl font-semibold tracking-tighter text-white">lithographer</h1>
-                    <p class="text-zinc-500 text-sm -mt-1">SD Card • NVMe • USB Writer</p>
+                <div class="min-w-0">
+                    <h1 class="main-title theme-title logo-font text-2xl sm:text-3xl font-semibold tracking-tighter truncate">lithographer</h1>
+                    <p class="header-tagline theme-muted text-xs sm:text-sm -mt-0.5 truncate">SD Card • NVMe • USB Writer</p>
                 </div>
             </div>
-            
-            <div class="flex items-center gap-x-3 text-sm">
-                <div class="flex items-center gap-x-1.5 px-3 py-1.5 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20">
-                    <i class="fa-solid fa-circle text-xs animate-pulse"></i>
-                    <span class="font-medium">Connected</span>
+
+            <div class="flex items-center gap-2 sm:gap-3 text-sm self-start sm:self-auto shrink-0">
+                <div id="privilege-badge"
+                     title="Checking privilege status..."
+                     class="privilege-badge privilege-badge--unknown flex items-center gap-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-full border">
+                    <i id="privilege-icon" class="fa-solid fa-shield-halved text-xs"></i>
+                    <span id="privilege-text" class="font-medium text-xs sm:text-sm">Checking…</span>
                 </div>
-                <div onclick="toggleTheme()" 
-                     class="w-9 h-9 flex items-center justify-center hover:bg-zinc-900 rounded-xl cursor-pointer transition-colors">
-                    <i id="theme-icon" class="fa-solid fa-moon text-zinc-400"></i>
-                </div>
+                <button type="button" onclick="toggleTheme()" title="Toggle light/dark theme"
+                     class="theme-icon-btn w-9 h-9 flex items-center justify-center rounded-xl cursor-pointer transition-colors">
+                    <i id="theme-icon" class="fa-solid fa-sun"></i>
+                </button>
             </div>
         </div>
 
-        <div class="glass rounded-3xl border border-zinc-800 p-8 shadow-2xl">
+        <div class="glass rounded-2xl sm:rounded-3xl border p-4 sm:p-6 lg:p-8 shadow-2xl">
             <!-- Mode Selection -->
-            <div class="mb-8">
-                <label class="block text-zinc-400 text-sm font-medium mb-3 tracking-widest">OPERATION MODE</label>
-                <div class="grid grid-cols-2 gap-4" id="mode-select">
+            <div class="section-block">
+                <label class="theme-label block text-xs sm:text-sm font-medium mb-2 sm:mb-3 tracking-widest">OPERATION MODE</label>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4" id="mode-select">
                     <!-- Populated by JS -->
                 </div>
             </div>
 
             <!-- Device Selection -->
-            <div class="mb-8">
-                <label class="block text-zinc-400 text-sm font-medium mb-3 tracking-widest">TARGET DEVICE</label>
+            <div class="section-block">
+                <label class="theme-label block text-xs sm:text-sm font-medium mb-2 sm:mb-3 tracking-widest">TARGET DEVICE</label>
                 <div class="relative">
-                    <select id="diskSelect" 
+                    <select id="diskSelect"
                             onchange="selectDevice(this)"
-                            class="w-full bg-zinc-900 border border-zinc-700 focus:border-blue-500 rounded-2xl px-5 py-4 text-white appearance-none focus:outline-none cursor-pointer">
+                            class="theme-select w-full border focus:border-blue-500 rounded-xl sm:rounded-2xl px-4 sm:px-5 py-3 sm:py-4 text-sm sm:text-base appearance-none focus:outline-none cursor-pointer">
                         <option value="">Select a storage device...</option>
                     </select>
-                    <div class="pointer-events-none absolute right-5 top-1/2 -translate-y-1/2 text-zinc-500">
+                    <div class="pointer-events-none absolute right-4 sm:right-5 top-1/2 -translate-y-1/2 theme-muted">
                         <i class="fa-solid fa-chevron-down"></i>
                     </div>
                 </div>
-                <div id="device-info" class="mt-3 text-xs text-zinc-500 flex items-center gap-2"></div>
+                <div id="device-info" class="mt-2 sm:mt-3 text-xs theme-muted flex flex-wrap items-center gap-2"></div>
             </div>
 
             <!-- File Selection -->
-            <div class="mb-8">
-                <label class="block text-zinc-400 text-sm font-medium mb-3 tracking-widest" id="file-label">SOURCE FILE</label>
-                <div class="flex gap-3">
-                    <button onclick="selectFile()" 
+            <div class="section-block">
+                <label class="theme-label block text-xs sm:text-sm font-medium mb-2 sm:mb-3 tracking-widest" id="file-label">SOURCE IMAGE</label>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <button type="button" onclick="selectFile()"
                             id="file-button"
-                            class="flex-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 hover:border-blue-500 transition-all rounded-2xl px-6 py-4 text-left flex items-center gap-x-3 group">
-                        <div class="w-9 h-9 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
-                            <i class="fa-solid fa-file-image"></i>
+                            class="theme-file-btn flex-1 min-w-0 border transition-all rounded-xl sm:rounded-2xl px-4 sm:px-6 py-3 sm:py-4 text-left flex items-center gap-x-3 group">
+                        <div class="w-8 h-8 sm:w-9 sm:h-9 shrink-0 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
+                            <i id="file-icon" class="fa-solid fa-file-image"></i>
                         </div>
                         <div class="flex-1 min-w-0">
-                            <div id="selected-file-name" class="text-sm font-medium text-white truncate">No file selected</div>
-                            <div id="selected-file-path" class="text-xs text-zinc-500 truncate">Click to choose image</div>
+                            <div id="selected-file-name" class="text-sm font-medium theme-title truncate">No file selected</div>
+                            <div id="selected-file-path" class="text-xs theme-muted truncate">Click to choose an image file</div>
                         </div>
                     </button>
-                    
-                    <button onclick="selectFile()" 
-                            class="px-8 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-2xl flex items-center justify-center transition-colors">
-                        <i class="fa-solid fa-folder-open text-xl"></i>
+
+                    <button type="button" onclick="selectFile()"
+                            class="theme-file-btn-secondary sm:px-8 px-4 py-3 sm:py-0 border rounded-xl sm:rounded-2xl flex items-center justify-center gap-2 transition-colors">
+                        <i class="fa-solid fa-folder-open text-lg sm:text-xl"></i>
+                        <span class="sm:hidden text-sm font-medium">Browse</span>
                     </button>
                 </div>
             </div>
 
             <!-- Status -->
-            <div class="mb-6 bg-zinc-900/70 border border-zinc-800 rounded-2xl p-5 terminal">
-                <div class="flex justify-between items-center text-xs mb-2 text-zinc-500">
+            <div class="section-block theme-status-panel border rounded-xl sm:rounded-2xl p-4 sm:p-5 terminal">
+                <div class="flex justify-between items-center text-xs mb-2 theme-muted gap-2">
                     <div>STATUS</div>
-                    <div id="status-text" class="text-emerald-400 font-medium">Ready</div>
+                    <div id="status-text" class="text-emerald-400 font-medium shrink-0">Ready</div>
                 </div>
-                <div id="status-detail" class="text-zinc-400 text-sm">Waiting for operation...</div>
+                <div id="status-detail" class="theme-label text-sm break-words">Waiting for operation...</div>
             </div>
 
             <!-- Progress -->
-            <div class="mb-8">
-                <div class="flex justify-between text-xs text-zinc-500 mb-2">
+            <div class="section-block">
+                <div class="flex justify-between text-xs theme-muted mb-2">
                     <div>PROGRESS</div>
                     <div id="progress-text" class="font-mono">0%</div>
                 </div>
-                <div class="h-2 bg-zinc-800 rounded-3xl overflow-hidden">
-                    <div id="progress-bar" 
+                <div class="theme-progress-track h-2 rounded-3xl overflow-hidden">
+                    <div id="progress-bar"
                          class="progress-bar h-full bg-gradient-to-r from-blue-500 to-cyan-400 w-0 rounded-3xl"></div>
                 </div>
             </div>
 
             <!-- Controls -->
-            <div class="flex gap-4">
-                <button onclick="startProcess()" 
+            <div class="flex flex-col-reverse sm:flex-row gap-3 sm:gap-4">
+                <button type="button" onclick="startProcess()"
                         id="start-button"
-                        class="flex-1 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 transition-all text-white font-semibold py-5 rounded-3xl text-lg flex items-center justify-center gap-x-3 shadow-lg shadow-blue-500/30 active:scale-[0.985]">
+                        class="control-primary flex-1 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 transition-all text-white font-semibold py-4 sm:py-5 rounded-2xl sm:rounded-3xl text-base sm:text-lg flex items-center justify-center gap-x-3 shadow-lg shadow-blue-500/30 active:scale-[0.985]">
                     <i class="fa-solid fa-play"></i>
                     <span id="start-text">START FLASH</span>
                 </button>
-                
-                <button onclick="cancelProcess()" 
+
+                <button type="button" onclick="cancelProcess()"
                         id="cancel-button"
-                        class="hidden px-8 bg-zinc-900 hover:bg-red-950 border border-red-500/30 hover:border-red-500 text-red-400 hover:text-red-300 rounded-3xl font-medium transition-all">
+                        class="theme-cancel-btn hidden sm:px-8 px-4 py-4 sm:py-5 border text-red-400 hover:text-red-300 rounded-2xl sm:rounded-3xl font-medium transition-all">
                     CANCEL
                 </button>
             </div>
         </div>
 
         <!-- Footer -->
-        <div class="mt-8 text-center text-zinc-600 text-xs flex items-center justify-center gap-x-5">
-            <div>Made with ❤️ by <a href="https://github.com/girish946" target="_blank" class="hover:text-zinc-400">Girish Joshi</a></div>
-            <div class="w-px h-3 bg-zinc-800"></div>
+        <div class="app-footer theme-footer text-center text-xs flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-5 pb-1">
+            <div>Made with ❤️ by <a href="https://github.com/girish946" target="_blank">Girish Joshi</a></div>
+            <div class="theme-footer-divider hidden sm:block w-px h-3"></div>
             <div class="flex items-center gap-x-1">
                 <i class="fa-solid fa-shield-halved"></i>
                 <span>Root Required</span>
@@ -183,21 +341,14 @@
     </div>
 
     <script>
-        // Tailwind script already loaded
-        function initializeTailwind() {
-            // Already configured via CDN
-        }
-
-        // Populated at runtime via liblitho::devices::get_storage_devices (in-process).
         let devices = [];
-
         let selectedMode = "flash";
         let selectedDevice = null;
         let selectedFile = null;
         let isRunning = false;
         let progressInterval = null;
+        const THEME_STORAGE_KEY = "lithographer-theme";
 
-        // Mode options
         const modes = [
             {
                 id: "flash",
@@ -213,24 +364,71 @@
             }
         ];
 
+        function tauriInvoke(cmd, args = {}) {
+            if (!window.__TAURI__ || !window.__TAURI__.core) {
+                return Promise.reject(new Error("Tauri backend unavailable"));
+            }
+            return window.__TAURI__.core.invoke(cmd, args);
+        }
+
+        function basename(path) {
+            if (!path) return "";
+            const parts = path.split(/[/\\]/);
+            return parts[parts.length - 1] || path;
+        }
+
+        function setSelectedFile(path) {
+            if (!path) return;
+            selectedFile = {
+                name: basename(path),
+                path: path
+            };
+
+            document.getElementById("selected-file-name").textContent = selectedFile.name;
+            document.getElementById("selected-file-path").textContent = selectedFile.path;
+            document.getElementById("status-detail").innerHTML =
+                `Selected: <span class="text-blue-400 break-all">${selectedFile.name}</span>`;
+        }
+
+        function updateFileSection() {
+            const isClone = selectedMode === "clone";
+            const label = document.getElementById("file-label");
+            const placeholder = document.getElementById("selected-file-path");
+            const icon = document.getElementById("file-icon");
+
+            label.textContent = isClone ? "OUTPUT IMAGE" : "SOURCE IMAGE";
+            icon.className = isClone ? "fa-solid fa-floppy-disk" : "fa-solid fa-file-image";
+
+            if (!selectedFile) {
+                placeholder.textContent = isClone
+                    ? "Click to choose where to save the clone"
+                    : "Click to choose an image file";
+            }
+        }
+
         function renderModes() {
             const container = document.getElementById("mode-select");
-            container.innerHTML = '';
-            
+            container.innerHTML = "";
+
             modes.forEach(mode => {
                 const div = document.createElement("div");
-                div.className = `mode-option p-6 rounded-3xl border cursor-pointer flex flex-col items-center text-center card ${mode.id === selectedMode ? 'active' : 'border-zinc-700 hover:border-zinc-600'}`;
+                div.className = `mode-option p-4 sm:p-6 rounded-2xl sm:rounded-3xl border cursor-pointer flex flex-col items-center text-center card ${mode.id === selectedMode ? "active" : ""}`;
                 div.innerHTML = `
-                    <div class="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center mb-4 text-3xl text-blue-400">
+                    <div class="mode-icon-wrap w-10 h-10 sm:w-12 sm:h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center mb-3 sm:mb-4 text-2xl sm:text-3xl text-blue-400">
                         <i class="${mode.icon}"></i>
                     </div>
-                    <div class="font-semibold text-lg">${mode.label}</div>
-                    <div class="text-zinc-500 text-sm mt-1">${mode.desc}</div>
+                    <div class="mode-label font-semibold text-base sm:text-lg">${mode.label}</div>
+                    <div class="mode-desc theme-muted text-xs sm:text-sm mt-1">${mode.desc}</div>
                 `;
                 div.onclick = () => {
+                    if (selectedMode === mode.id) return;
                     selectedMode = mode.id;
+                    selectedFile = null;
+                    document.getElementById("selected-file-name").textContent = "No file selected";
+                    document.getElementById("selected-file-path").textContent = "";
                     renderModes();
                     updateStartButton();
+                    updateFileSection();
                 };
                 container.appendChild(div);
             });
@@ -239,11 +437,11 @@
         function populateDevices() {
             const select = document.getElementById("diskSelect");
             select.innerHTML = `<option value="">Select a storage device...</option>`;
-            
+
             devices.forEach((device, index) => {
                 const opt = document.createElement("option");
                 opt.value = index;
-                opt.textContent = `${device.name} • ${device.size} ${device.removable ? '(Removable)' : '(Fixed)'}`;
+                opt.textContent = `${device.name} • ${device.size} ${device.removable ? "(Removable)" : "(Fixed)"}`;
                 select.appendChild(opt);
             });
         }
@@ -251,42 +449,34 @@
         function selectDevice(selectEl) {
             if (!selectEl.value) {
                 selectedDevice = null;
-                document.getElementById("device-info").innerHTML = '';
+                document.getElementById("device-info").innerHTML = "";
                 return;
             }
-            
-            const index = parseInt(selectEl.value);
+
+            const index = parseInt(selectEl.value, 10);
             selectedDevice = devices[index];
-            
+
             const infoEl = document.getElementById("device-info");
             infoEl.innerHTML = `
-                <span class="px-2.5 py-1 bg-zinc-800 rounded-lg">${selectedDevice.path}</span>
+                <span class="theme-chip px-2.5 py-1 rounded-lg break-all">${selectedDevice.path}</span>
                 <span>${selectedDevice.size}</span>
-                ${selectedDevice.removable ? `<span class="text-emerald-400">● Removable</span>` : ''}
+                ${selectedDevice.removable ? `<span class="text-emerald-400">● Removable</span>` : ""}
             `;
         }
 
-        function selectFile() {
-            // Simulate file selection
-            const fakeFiles = [
-                "raspbian-bookworm.img",
-                "ubuntu-24.04-desktop-arm64.iso",
-                "windows-11-arm64.wim",
-                "custom-os-image.dd"
-            ];
-            
-            const randomFile = fakeFiles[Math.floor(Math.random() * fakeFiles.length)];
-            
-            selectedFile = {
-                name: randomFile,
-                path: `/home/user/Downloads/${randomFile}`
-            };
-            
-            document.getElementById("selected-file-name").textContent = selectedFile.name;
-            document.getElementById("selected-file-path").textContent = selectedFile.path;
-            
-            // Auto update status
-            document.getElementById("status-detail").innerHTML = `Selected: <span class="text-blue-400">${selectedFile.name}</span>`;
+        async function selectFile() {
+            if (isRunning) return;
+
+            try {
+                const path = await tauriInvoke("pick_image_path", { mode: selectedMode });
+                if (path) {
+                    setSelectedFile(path);
+                }
+            } catch (err) {
+                console.error("File picker failed:", err);
+                document.getElementById("status-detail").textContent =
+                    "Could not open file picker. Run inside the Lithographer app.";
+            }
         }
 
         function updateStartButton() {
@@ -294,47 +484,85 @@
             btnText.textContent = selectedMode === "flash" ? "START FLASH" : "START CLONE";
         }
 
-        // Fetch storage devices from the Tauri backend (liblitho in-process).
-        // Replaces the previous mock list and refreshes the dropdown.
-        // Removable vs fixed devices are indicated both in the option text and in the info line.
+        function applyPrivilegeBadge(kind, text, title) {
+            const badge = document.getElementById("privilege-badge");
+            const label = document.getElementById("privilege-text");
+            const icon = document.getElementById("privilege-icon");
+
+            const styles = {
+                root: "privilege-badge flex items-center gap-x-1.5 px-2.5 sm:px-3 py-1.5 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20",
+                polkit: "privilege-badge flex items-center gap-x-1.5 px-2.5 sm:px-3 py-1.5 bg-sky-500/10 text-sky-400 rounded-full border border-sky-500/20",
+                unprivileged: "privilege-badge flex items-center gap-x-1.5 px-2.5 sm:px-3 py-1.5 bg-amber-500/10 text-amber-400 rounded-full border border-amber-500/20",
+                unknown: "privilege-badge privilege-badge--unknown flex items-center gap-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-full border",
+            };
+
+            const icons = {
+                root: "fa-solid fa-user-shield",
+                polkit: "fa-solid fa-key",
+                unprivileged: "fa-solid fa-shield-halved",
+                unknown: "fa-solid fa-circle-question",
+            };
+
+            badge.className = styles[kind] || styles.unknown;
+            icon.className = `${icons[kind] || icons.unknown} text-xs`;
+            label.textContent = text;
+            badge.title = title;
+        }
+
+        async function loadPrivilegeStatus() {
+            try {
+                const diag = await tauriInvoke("get_startup_diagnostics");
+
+                if (diag.is_root) {
+                    applyPrivilegeBadge(
+                        "root",
+                        "Privileged",
+                        "Running as root. Flash and clone can run without a password prompt."
+                    );
+                } else if (diag.polkit_agent_is_executable) {
+                    applyPrivilegeBadge(
+                        "polkit",
+                        "Polkit ready",
+                        "Not root. Starting an operation will prompt for your administrator password."
+                    );
+                } else {
+                    applyPrivilegeBadge(
+                        "unprivileged",
+                        "Unprivileged",
+                        "Not running as root and no polkit agent was detected. Use sudo or install a desktop polkit agent."
+                    );
+                }
+            } catch (err) {
+                console.warn("Failed to load privilege status:", err);
+                applyPrivilegeBadge(
+                    "unknown",
+                    "Unknown",
+                    "Could not determine privilege status."
+                );
+            }
+        }
+
         async function loadStorageDevices() {
             const select = document.getElementById("diskSelect");
             if (!select) return;
 
-            // Preserve any path that was already selected (e.g. injected by launch params
-            // before the real device list arrived) so we can try to keep/restore it.
-            const previouslySelectedPath = (selectedDevice && selectedDevice.path) || select.value || null;
-
-            // Show a loading placeholder while we query
+            const previouslySelectedPath = (selectedDevice && selectedDevice.path) || null;
             select.innerHTML = `<option value="">Detecting storage devices...</option>`;
 
             try {
-                if (!window.__TAURI__ || !window.__TAURI__.core) {
-                    // Running outside Tauri (plain browser) — keep empty or show hint
-                    devices = [];
-                    populateDevices();
-                    select.innerHTML = `<option value="">No Tauri backend (demo mode)</option>`;
-                    return;
-                }
-
-                const realDevices = await window.__TAURI__.core.invoke("get_storage_devices");
+                const realDevices = await tauriInvoke("get_storage_devices");
                 devices = Array.isArray(realDevices) ? realDevices : [];
-
                 populateDevices();
 
                 if (devices.length === 0) {
                     select.innerHTML = `<option value="">No storage devices found</option>`;
-                } else {
-                    // Try to restore a previous selection by path (handles launch --device
-                    // that arrived before the real list, or user selection during refresh).
-                    if (previouslySelectedPath) {
-                        let idx = devices.findIndex(d =>
-                            d.path === previouslySelectedPath || d.path.endsWith(previouslySelectedPath)
-                        );
-                        if (idx !== -1) {
-                            select.value = idx;
-                            selectDevice(select);
-                        }
+                } else if (previouslySelectedPath) {
+                    const idx = devices.findIndex(d =>
+                        d.path === previouslySelectedPath || d.path.endsWith(previouslySelectedPath)
+                    );
+                    if (idx !== -1) {
+                        select.value = idx;
+                        selectDevice(select);
                     }
                 }
 
@@ -348,35 +576,43 @@
         }
 
         function startProcess() {
+            const needsFile = selectedMode === "flash"
+                ? "Please select a device and a source image file."
+                : "Please select a device and an output image path.";
+
             if (!selectedDevice || !selectedFile) {
-                alert("Please select both a device and a source file/image.");
+                alert(needsFile);
                 return;
             }
-            
+
             if (isRunning) return;
-            
+
             isRunning = true;
             document.getElementById("start-button").classList.add("opacity-50", "cursor-not-allowed");
             document.getElementById("cancel-button").classList.remove("hidden");
-            
+
             const statusEl = document.getElementById("status-text");
             statusEl.textContent = "IN PROGRESS";
             statusEl.className = "text-amber-400 font-medium";
-            
-            document.getElementById("status-detail").innerHTML = `${selectedMode === 'flash' ? 'Writing' : 'Cloning'} to <span class="font-medium">${selectedDevice.name}</span>...`;
-            
-            // Simulate progress
+
+            const action = selectedMode === "flash" ? "Writing" : "Cloning";
+            const target = selectedMode === "flash"
+                ? selectedDevice.name
+                : selectedFile.name;
+            document.getElementById("status-detail").innerHTML =
+                `${action} <span class="font-medium">${target}</span>... (simulation)`;
+
             let progress = 0;
             const progressBar = document.getElementById("progress-bar");
             const progressText = document.getElementById("progress-text");
-            
+
             progressInterval = setInterval(() => {
                 progress += Math.random() * 12;
                 if (progress > 100) progress = 100;
-                
+
                 progressBar.style.width = `${progress}%`;
                 progressText.textContent = `${Math.floor(progress)}%`;
-                
+
                 if (progress >= 100) {
                     clearInterval(progressInterval);
                     finishProcess();
@@ -388,36 +624,35 @@
             isRunning = false;
             document.getElementById("start-button").classList.remove("opacity-50", "cursor-not-allowed");
             document.getElementById("cancel-button").classList.add("hidden");
-            
+
             const statusEl = document.getElementById("status-text");
             statusEl.textContent = "COMPLETE";
             statusEl.className = "text-emerald-400 font-medium";
-            
-            document.getElementById("status-detail").innerHTML = `
-                Successfully ${selectedMode === 'flash' ? 'flashed' : 'cloned'} to ${selectedDevice.name}
-            `;
-            
-            // Celebration effect
+
+            const verb = selectedMode === "flash" ? "flashed" : "cloned";
+            const target = selectedMode === "flash" ? selectedDevice.name : selectedFile.name;
+            document.getElementById("status-detail").innerHTML =
+                `Successfully ${verb} <span class="font-medium">${target}</span> (simulation)`;
+
             confettiBurst();
         }
 
         function cancelProcess() {
             if (progressInterval) clearInterval(progressInterval);
             isRunning = false;
-            
+
             document.getElementById("progress-bar").style.width = "0%";
             document.getElementById("progress-text").textContent = "0%";
-            
+
             document.getElementById("start-button").classList.remove("opacity-50", "cursor-not-allowed");
             document.getElementById("cancel-button").classList.add("hidden");
-            
+
             document.getElementById("status-text").textContent = "CANCELLED";
             document.getElementById("status-text").className = "text-orange-400 font-medium";
             document.getElementById("status-detail").textContent = "Operation cancelled by user.";
         }
 
         function confettiBurst() {
-            // Simple confetti using DOM
             for (let i = 0; i < 60; i++) {
                 setTimeout(() => {
                     const confetti = document.createElement("div");
@@ -427,11 +662,11 @@
                     confetti.style.width = "8px";
                     confetti.style.height = "8px";
                     confetti.style.borderRadius = "2px";
-                    confetti.style.backgroundColor = `hsl(${Math.random()*360}, 90%, 65%)`;
+                    confetti.style.backgroundColor = `hsl(${Math.random() * 360}, 90%, 65%)`;
                     confetti.style.zIndex = "9999";
                     confetti.style.opacity = "0.9";
                     document.body.appendChild(confetti);
-                    
+
                     let y = 0;
                     const fall = setInterval(() => {
                         y += 12 + Math.random() * 8;
@@ -445,79 +680,89 @@
             }
         }
 
-        function toggleTheme() {
-            // For demo only (dark by default)
-            alert("Theme toggle coming in full app! 🌙");
+        function getSystemTheme() {
+            return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light";
         }
 
-        // Update the application logo based on the current system color scheme.
-        // Uses light-logo.jpg or dark-logo.jpg from imgs/ (copied to assets/).
-        function updateAppLogo() {
-            const logoEl = document.getElementById('app-logo');
+        function getActiveTheme() {
+            return document.documentElement.getAttribute("data-theme") || "dark";
+        }
+
+        function updateAppLogo(theme) {
+            const logoEl = document.getElementById("app-logo");
             if (!logoEl) return;
 
-            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-            const logoSrc = prefersDark ? 'assets/dark-logo.jpg' : 'assets/light-logo.jpg';
-
-            if (logoEl.src !== logoSrc && !logoEl.src.endsWith(logoSrc)) {
+            const logoSrc = theme === "dark" ? "assets/dark-logo.jpg" : "assets/light-logo.jpg";
+            if (!logoEl.src.endsWith(logoSrc)) {
                 logoEl.src = logoSrc;
             }
         }
 
-        // Set up system theme listener for the logo (and optionally other elements in future).
-        function initThemeAwareLogo() {
-            // Set initial logo
-            updateAppLogo();
+        function updateThemeToggleIcon(theme) {
+            const icon = document.getElementById("theme-icon");
+            const btn = icon && icon.parentElement;
+            if (!icon) return;
 
-            // React to system theme changes
-            if (window.matchMedia) {
-                const media = window.matchMedia('(prefers-color-scheme: dark)');
-                // Modern browsers
-                if (media.addEventListener) {
-                    media.addEventListener('change', updateAppLogo);
-                } else if (media.addListener) {
-                    // Legacy
-                    media.addListener(updateAppLogo);
-                }
+            if (theme === "dark") {
+                icon.className = "fa-solid fa-sun text-amber-300";
+                if (btn) btn.title = "Switch to light theme";
+            } else {
+                icon.className = "fa-solid fa-moon text-slate-600";
+                if (btn) btn.title = "Switch to dark theme";
             }
         }
 
-        // Apply CLI args (if any) to pre-populate mode, device and image fields.
-        // Only acts when at least one relevant argument was passed.
+        function applyTheme(theme) {
+            document.documentElement.setAttribute("data-theme", theme);
+            try {
+                localStorage.setItem(THEME_STORAGE_KEY, theme);
+            } catch (_) {
+                /* ignore private browsing */
+            }
+            updateAppLogo(theme);
+            updateThemeToggleIcon(theme);
+        }
+
+        function initTheme() {
+            let theme = null;
+            try {
+                theme = localStorage.getItem(THEME_STORAGE_KEY);
+            } catch (_) {
+                theme = null;
+            }
+            applyTheme(theme === "light" || theme === "dark" ? theme : getSystemTheme());
+        }
+
+        function toggleTheme() {
+            applyTheme(getActiveTheme() === "dark" ? "light" : "dark");
+        }
+
         async function applyLaunchParamsIfAny() {
             try {
-                if (!window.__TAURI__ || !window.__TAURI__.core) {
-                    return;
-                }
-
-                const params = await window.__TAURI__.core.invoke("get_launch_params");
-
+                const params = await tauriInvoke("get_launch_params");
                 const hasAny = params.mode || params.device || params.image;
-                if (!hasAny) {
-                    // No args provided — do nothing (per requirements)
-                    return;
-                }
+                if (!hasAny) return;
 
                 console.log("%c[launch] Applying CLI params:", "color:#60a5fa", params);
 
-                // 1. Mode (flash / clone)
                 if (params.mode) {
                     const wanted = String(params.mode).toLowerCase();
-                    selectedMode = (wanted === "clone") ? "clone" : "flash";
+                    selectedMode = wanted === "clone" ? "clone" : "flash";
                     renderModes();
                     updateStartButton();
+                    updateFileSection();
                 }
 
-                // 2. Device (match by path or inject a synthetic entry)
                 if (params.device) {
                     let idx = devices.findIndex(d =>
                         d.path === params.device || d.path.endsWith(params.device)
                     );
 
                     if (idx === -1) {
-                        // Add dynamic device entry so the UI can select it
                         devices.push({
-                            name: params.device.split("/").pop() || params.device,
+                            name: basename(params.device),
                             path: params.device,
                             size: "Unknown size",
                             removable: true,
@@ -532,27 +777,14 @@
                     selectDevice(select);
                 }
 
-                // 3. Image / source file
                 if (params.image) {
-                    const fullPath = params.image;
-                    const fileName = fullPath.split("/").pop() || fullPath;
-
-                    selectedFile = {
-                        name: fileName,
-                        path: fullPath
-                    };
-
-                    document.getElementById("selected-file-name").textContent = fileName;
-                    document.getElementById("selected-file-path").textContent = fullPath;
-                    document.getElementById("status-detail").innerHTML =
-                        `Selected: <span class="text-blue-400">${fileName}</span>`;
+                    setSelectedFile(params.image);
                 }
             } catch (err) {
                 console.warn("Failed to read/apply launch params:", err);
             }
         }
 
-        // Keyboard shortcuts
         function handleKeyboard(e) {
             if (e.key === "/" && document.activeElement.tagName !== "INPUT" && document.activeElement.tagName !== "TEXTAREA") {
                 e.preventDefault();
@@ -560,29 +792,18 @@
             }
         }
 
-        // Initialize everything
         window.onload = function() {
-            // Initialize theme-aware logo (light/dark from imgs/ depending on system prefers-color-scheme)
-            initThemeAwareLogo();
-
+            initTheme();
             renderModes();
             updateStartButton();
+            updateFileSection();
 
-            // Keyboard
             document.addEventListener("keydown", handleKeyboard);
 
-            // Make file area clickable too
-            const fileArea = document.getElementById("file-button");
-            fileArea.style.cursor = "pointer";
+            console.log("%cLithographer UI ✅", "color:#60a5fa; font-family:monospace; font-size:13px");
 
-            console.log('%cLithographer UI Modernized ✅', 'color:#60a5fa; font-family:monospace; font-size:13px');
-
-            // Load devices from the backend (liblitho::get_storage_devices).
-            // This populates the dropdown and indicates removable vs fixed devices.
+            loadPrivilegeStatus();
             loadStorageDevices();
-
-            // Populate form from CLI arguments (if any were passed).
-            // If a --device was given that isn't in the list yet, the handler injects it.
             applyLaunchParamsIfAny();
         };
     </script>

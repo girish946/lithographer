@@ -448,6 +448,32 @@ fn get_storage_devices() -> Result<Vec<StorageDeviceInfo>, String> {
     query_storage_devices()
 }
 
+const IMAGE_EXTENSIONS: &[&str] = &["img", "iso", "raw", "dd", "bin", "xz", "wim", "dmg"];
+
+/// Native open/save dialog for flash source or clone destination.
+#[tauri::command]
+fn pick_image_path(mode: String) -> Result<Option<String>, String> {
+    let is_clone = mode.eq_ignore_ascii_case("clone") || mode.eq_ignore_ascii_case("backup");
+
+    let mut dialog = rfd::FileDialog::new();
+    dialog = dialog
+        .set_title(if is_clone {
+            "Choose output image file"
+        } else {
+            "Choose image to flash"
+        })
+        .add_filter("Disk images", IMAGE_EXTENSIONS)
+        .add_filter("All files", &["*"]);
+
+    let picked = if is_clone {
+        dialog.save_file()
+    } else {
+        dialog.pick_file()
+    };
+
+    Ok(picked.map(|p| p.to_string_lossy().into_owned()))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -458,6 +484,7 @@ pub fn run() {
             get_usable_app_path_for_privileged,
             get_launch_params,
             get_storage_devices,
+            pick_image_path,
             relaunch_elevated
         ])
         .setup(|_app| {
