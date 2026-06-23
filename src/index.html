@@ -188,8 +188,7 @@
             // Already configured via CDN
         }
 
-        // Populated at runtime from the backend by calling the litho binary
-        // (which uses liblitho::devices::get_storage_devices).
+        // Populated at runtime via liblitho::devices::get_storage_devices (in-process).
         let devices = [];
 
         let selectedMode = "flash";
@@ -295,7 +294,7 @@
             btnText.textContent = selectedMode === "flash" ? "START FLASH" : "START CLONE";
         }
 
-        // Fetch real storage devices from the Tauri backend (via the bundled litho CLI).
+        // Fetch storage devices from the Tauri backend (liblitho in-process).
         // Replaces the previous mock list and refreshes the dropdown.
         // Removable vs fixed devices are indicated both in the option text and in the info line.
         async function loadStorageDevices() {
@@ -578,7 +577,7 @@
 
             console.log('%cLithographer UI Modernized ✅', 'color:#60a5fa; font-family:monospace; font-size:13px');
 
-            // Load real devices from the backend (calls into litho binary -> get_storage_devices API).
+            // Load devices from the backend (liblitho::get_storage_devices).
             // This populates the dropdown and indicates removable vs fixed devices.
             loadStorageDevices();
 

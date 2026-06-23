@@ -10,8 +10,6 @@ use std::process::Command;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 
-use tauri::Manager;
-
 use liblitho::devices::{self as litho_devices, DeviceInfo as LithoDeviceInfo};
 
 #[derive(serde::Serialize)]
@@ -21,14 +19,7 @@ struct StartupDiagnostics {
     is_root: bool,
     polkit_agent_path: Option<String>,
     polkit_agent_is_executable: bool,
-    // Polkit-related privileged execution test.
-    // We now run the litho binary's --help through pkexec so this single step
-    // verifies both the polkit auth agent and that the bundled litho binary works.
-    litho_polkit_result: String,
-    // Direct (non-privileged) litho binary checks
-    litho_binary_path: Option<String>,
-    litho_can_execute: bool,
-    litho_help_result: String,
+    polkit_status: String,
 }
 
 #[derive(serde::Serialize, Clone, Debug)]
@@ -230,104 +221,6 @@ fn is_file_executable(path: &str) -> bool {
     }
 }
 
-/// Try to execute the bundled litho binary with --help.
-/// Returns (can_execute, result_message).
-fn test_litho_binary_help(litho_path: &std::path::Path) -> (bool, String) {
-    if !litho_path.exists() {
-        return (
-            false,
-            format!("Binary does not exist at {}", litho_path.display()),
-        );
-    }
-
-    // Try a simple --help invocation. This should work without any privileges.
-    match Command::new(litho_path).arg("--help").output() {
-        Ok(output) => {
-            let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-            let exit_code = output.status.code().unwrap_or(-1);
-            let success = output.status.success();
-
-            let preview = if !stdout.is_empty() {
-                stdout.lines().next().unwrap_or("").to_string()
-            } else if !stderr.is_empty() {
-                stderr.lines().next().unwrap_or("").to_string()
-            } else {
-                "(no output)".to_string()
-            };
-
-            if success {
-                (true, format!("SUCCESS (exit {}) — {}", exit_code, preview))
-            } else {
-                (
-                    false,
-                    format!(
-                        "FAILED (exit {}) — stdout: {} | stderr: {}",
-                        exit_code, preview, stderr
-                    ),
-                )
-            }
-        }
-        Err(e) => (
-            false,
-            format!("Failed to spawn litho binary: {}", e),
-        ),
-    }
-}
-
-/// Test running the litho binary via pkexec (i.e. through the polkit auth agent).
-/// We use `litho --help` instead of a generic `ls` so that this single step
-/// verifies both:
-///   - the polkit authentication agent is present and functional
-///   - the bundled litho binary (our main asset) can be executed
-#[allow(dead_code)]
-fn test_litho_via_polkit(litho_path: Option<&std::path::Path>) -> String {
-    let litho = match litho_path {
-        Some(p) if p.exists() => p.to_string_lossy().to_string(),
-        _ => return "No litho binary available to test via polkit".to_string(),
-    };
-
-    // Use `timeout` when available to prevent blocking on an auth prompt.
-    let has_timeout = Command::new("timeout").arg("--version").output().is_ok();
-
-    let mut cmd = if has_timeout {
-        let mut c = Command::new("timeout");
-        c.args(["2s", "pkexec", &litho, "--help"]);
-        c
-    } else {
-        let mut c = Command::new("pkexec");
-        c.args([&litho, "--help"]);
-        c
-    };
-
-    match cmd.output() {
-        Ok(output) => {
-            let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-            let code = output.status.code().unwrap_or(-1);
-
-            if code == 0 {
-                let first_line = stdout.lines().next().unwrap_or("");
-                format!("SUCCESS (exit 0) — ran litho --help via pkexec. Preview: {}", first_line)
-            } else if code == 124 || code == 137 {
-                // timeout killed it — this usually means the polkit agent presented an authentication dialog
-                "TIMED OUT after 2s (polkit agent likely presented an authentication dialog for litho)".to_string()
-            } else if stderr.to_lowercase().contains("no authentication agent")
-                || stderr.to_lowercase().contains("not authorized")
-                || stderr.to_lowercase().contains("could not find")
-                || stderr.to_lowercase().contains("authorization failed")
-            {
-                format!("POLKIT AGENT PROBLEM (exit {}) — {}", code, stderr)
-            } else {
-                format!("FAILED (exit {}) — stdout: {} | stderr: {}", code, stdout, stderr)
-            }
-        }
-        Err(e) => {
-            format!("FAILED TO SPAWN pkexec: {}", e)
-        }
-    }
-}
-
 fn perform_startup_checks() -> StartupDiagnostics {
     let desktop_environment = get_desktop_environment();
     let current_user = get_current_user();
@@ -337,11 +230,9 @@ fn perform_startup_checks() -> StartupDiagnostics {
         .as_ref()
         .map(|p| is_file_executable(p))
         .unwrap_or(false);
-    // Polkit elevation test for the litho binary (or app re-launch) is now deferred.
-    // We only record whether an agent appears to be available.
-    // The actual privileged re-launch will be triggered later via the relaunch_elevated API.
-    let litho_polkit_result = if polkit_agent_path.as_ref().map_or(false, |p| is_file_executable(p)) {
-        "Polkit agent present. Elevation test and re-launch deferred until operation is requested.".to_string()
+    // Privileged re-launch is deferred until the user starts an operation.
+    let polkit_status = if polkit_agent_path.as_ref().map_or(false, |p| is_file_executable(p)) {
+        "Polkit agent present. Elevation deferred until operation is requested.".to_string()
     } else {
         "No usable polkit authentication agent detected at startup.".to_string()
     };
@@ -352,63 +243,13 @@ fn perform_startup_checks() -> StartupDiagnostics {
         is_root,
         polkit_agent_path,
         polkit_agent_is_executable,
-        litho_polkit_result,
-        litho_binary_path: None,
-        litho_can_execute: false,
-        litho_help_result: "Not checked (litho path resolution requires app context)".to_string(),
+        polkit_status,
     }
 }
 
 #[tauri::command]
-fn get_startup_diagnostics(app: tauri::AppHandle) -> StartupDiagnostics {
-    let mut diag = perform_startup_checks();
-
-    match find_litho_binary(&app) {
-        Ok(litho_path) => {
-            diag.litho_binary_path = Some(litho_path.to_string_lossy().to_string());
-
-            // Direct (non-privileged) check that the binary itself can run.
-            // We deliberately do *not* invoke pkexec / polkit at launch anymore
-            // to avoid showing an authentication dialog immediately.
-            let (can_execute, help_result) = test_litho_binary_help(&litho_path);
-            diag.litho_can_execute = can_execute;
-            diag.litho_help_result = help_result;
-
-            // The polkit result was already set in perform_startup_checks to indicate
-            // that full privileged testing / re-launch is deferred.
-            // We only keep the agent detection info here.
-        }
-        Err(e) => {
-            diag.litho_binary_path = None;
-            diag.litho_can_execute = false;
-            diag.litho_help_result = format!("Failed to locate bundled litho binary: {}", e);
-            diag.litho_polkit_result = format!("Failed to locate bundled litho binary: {}", e);
-        }
-    }
-
-    diag
-}
-
-/// Returns the absolute path to the bundled `litho` binary (shipped as a resource).
-/// This path is inside the AppImage / bundle at runtime.
-#[tauri::command]
-fn get_litho_binary_path(app: tauri::AppHandle) -> Result<String, String> {
-    // For most callers we return the bundled location.
-    // Callers that will pass the path to pkexec should use get_usable_litho_path_for_privileged instead.
-    find_litho_binary(&app)
-        .map(|p| p.to_string_lossy().to_string())
-        .map_err(|e| e.to_string())
-}
-
-/// Returns a path to `litho` that is safe to pass to pkexec / privileged contexts.
-/// When inside an AppImage the original binary is on a FUSE mount that root
-/// usually cannot read, so we copy it to the app's cache directory.
-#[tauri::command]
-fn get_usable_litho_path_for_privileged(app: tauri::AppHandle) -> Result<String, String> {
-    let bundled = find_litho_binary(&app)?;
-    get_usable_litho_path(&app, &bundled)
-        .map(|p| p.to_string_lossy().to_string())
-        .map_err(|e| e.to_string())
+fn get_startup_diagnostics() -> StartupDiagnostics {
+    perform_startup_checks()
 }
 
 /// Returns a path to the current application executable that is safe to pass to pkexec.
@@ -525,125 +366,7 @@ fn get_usable_app_path_for_privileged() -> Result<String, String> {
         .map(|p| p.to_string_lossy().to_string())
 }
 
-fn get_usable_litho_path(app: &tauri::AppHandle, bundled: &std::path::Path) -> Result<std::path::PathBuf, String> {
-    let path_str = bundled.to_string_lossy();
-    let is_appimage = path_str.contains("/.mount_") || std::env::var("APPIMAGE").is_ok();
-
-    if !is_appimage {
-        return Ok(bundled.to_path_buf());
-    }
-
-    // Stage a copy to the app cache dir (normal filesystem, visible to pkexec)
-    let cache_dir = app
-        .path()
-        .app_cache_dir()
-        .map_err(|e| format!("Failed to resolve cache dir: {}", e))?;
-    std::fs::create_dir_all(&cache_dir).map_err(|e| e.to_string())?;
-
-    let dest = cache_dir.join("litho");
-
-    let needs_update = !dest.exists() || {
-        let src_len = std::fs::metadata(bundled).map(|m| m.len()).unwrap_or(0);
-        let dst_len = std::fs::metadata(&dest).map(|m| m.len()).unwrap_or(0);
-        src_len != dst_len
-    };
-
-    if needs_update {
-        std::fs::copy(bundled, &dest)
-            .map_err(|e| format!("Failed to stage litho for privileged use: {}", e))?;
-
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let mut perms = std::fs::metadata(&dest)
-                .map_err(|e| e.to_string())?
-                .permissions();
-            perms.set_mode(0o755);
-            std::fs::set_permissions(&dest, perms).map_err(|e| e.to_string())?;
-        }
-    }
-
-    Ok(dest)
-}
-
-/// Robust finder for the litho binary.
-/// Tries the official Resource resolution first, then several fallbacks
-/// that are useful inside AppImages, .deb installs, and during development.
-fn find_litho_binary(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
-    // 1. Official Tauri resource resolution (works in dev + most bundles).
-    // The bundler (when "resources": ["resources/litho"]) typically places it under
-    // a "resources/" subdir inside the platform resource directory.
-    for candidate in ["resources/litho", "litho"] {
-        if let Ok(path) = app.path().resolve(candidate, tauri::path::BaseDirectory::Resource) {
-            if path.exists() {
-                return Ok(path);
-            }
-        }
-    }
-
-    // 2. Next to the current executable (common for AppImages / installed packages)
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(dir) = exe.parent() {
-            // Check both flat and the resources/ subdir (matches what the bundler produces)
-            for name in ["litho", "resources/litho"] {
-                let candidate = dir.join(name);
-                if candidate.exists() {
-                    return Ok(candidate);
-                }
-            }
-
-            // 3. Typical AppImage / deb layout: exe in usr/bin, resources under usr/lib/<product> (with or without resources/ subdir)
-            for name in ["litho", "resources/litho"] {
-                let candidate = dir.join("../lib/lithographer").join(name);
-                if candidate.exists() {
-                    return Ok(candidate.canonicalize().unwrap_or(candidate));
-                }
-                let candidate2 = dir.join("../../lib/lithographer").join(name);
-                if candidate2.exists() {
-                    return Ok(candidate2.canonicalize().unwrap_or(candidate2));
-                }
-            }
-        }
-    }
-
-    // 5. Common installed locations (for .deb / system packages)
-    for prefix in ["/usr/lib/lithographer", "/usr/local/lib/lithographer", "/opt/lithographer"] {
-        for name in ["litho", "resources/litho"] {
-            let candidate = std::path::Path::new(prefix).join(name);
-            if candidate.exists() {
-                return Ok(candidate.to_path_buf());
-            }
-        }
-    }
-
-    // 6. Last resort: look for it relative to the AppImage mount point
-    if let Ok(exe) = std::env::current_exe() {
-        let exe_str = exe.to_string_lossy();
-        if exe_str.contains("/.mount_") {
-            // Find the mount root by walking parents
-            for ancestor in exe.ancestors() {
-                let a = ancestor.to_string_lossy();
-                if a.contains("/.mount_") {
-                    // Check both flat and resources/ subdir under the typical lib location
-                    for name in ["litho", "resources/litho"] {
-                        let candidate = ancestor.join("usr/lib/lithographer").join(name);
-                        if candidate.exists() {
-                            return Ok(candidate);
-                        }
-                    }
-                    break;
-                }
-            }
-        }
-    }
-
-    Err("Could not locate the bundled litho binary in any expected location".to_string())
-}
-
-// Device enumeration using the litho Rust library API directly
-// (liblitho::devices::get_storage_devices and DeviceInfo).
-// Note: We depend on the litho package for its Rust APIs, but we are
-// NOT bundling the separate `litho` CLI binary for now.
+// Device enumeration and disk I/O use the litho Rust library (liblitho) in-process.
 
 #[derive(serde::Serialize, Clone, Debug)]
 pub struct StorageDeviceInfo {
@@ -732,29 +455,19 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             get_startup_diagnostics,
-            get_litho_binary_path,
-            get_usable_litho_path_for_privileged,
             get_usable_app_path_for_privileged,
             get_launch_params,
             get_storage_devices,
             relaunch_elevated
         ])
-        .setup(|app| {
-            // Full diagnostics (this also runs the litho --help check)
-            let diag = get_startup_diagnostics(app.handle().clone());
+        .setup(|_app| {
+            let diag = perform_startup_checks();
 
             println!("=== Lithographer Startup Checks ===");
             println!("Desktop Environment : {}", diag.desktop_environment);
-
-            println!("Litho binary path   : {}", diag.litho_binary_path.as_deref().unwrap_or("<not resolved>"));
-            println!("litho via polkit    : {}", diag.litho_polkit_result);
-
-            // Direct (non-privileged) verification that the binary itself responds to --help.
-            // Privileged re-launch via polkit is now available on demand via the relaunch_elevated API.
-            println!("litho --help (direct): {}", diag.litho_help_result);
-
             println!("Current User        : {}", diag.current_user);
             println!("Running as root     : {}", diag.is_root);
+            println!("Polkit status       : {}", diag.polkit_status);
             if let Some(ref agent) = diag.polkit_agent_path {
                 println!("Polkit auth agent   : {}", agent);
                 println!("Agent executable    : {}", diag.polkit_agent_is_executable);
@@ -799,13 +512,6 @@ pub fn run() {
                 println!("Polkit agent looks ready for privilege escalation requests.");
             }
 
-            if !diag.litho_can_execute {
-                eprintln!("⚠️  WARNING: Could not successfully execute the bundled litho binary (litho --help failed).");
-                eprintln!("   Image writing operations will not work until this is fixed.");
-            } else {
-                println!("litho binary is executable (direct --help succeeded).");
-            }
-
             // Note: full privileged elevation (pkexec re-launch of the app with args)
             // is no longer performed automatically at startup.
             // The relaunch_elevated command should be called later when the user
@@ -828,7 +534,7 @@ mod tests {
         // Basic sanity: we always get some strings
         assert!(!diag.desktop_environment.is_empty());
         assert!(!diag.current_user.is_empty());
-        assert!(!diag.litho_polkit_result.is_empty());
+        assert!(!diag.polkit_status.is_empty());
 
         // Print for visibility when running with --nocapture
         println!("=== TEST: Startup Diagnostics ===");
@@ -837,11 +543,7 @@ mod tests {
         println!("Root: {}", diag.is_root);
         println!("Polkit agent: {:?}", diag.polkit_agent_path);
         println!("Executable: {}", diag.polkit_agent_is_executable);
-        println!("litho via polkit: {}", diag.litho_polkit_result);
-        println!("Litho path: {:?}", diag.litho_binary_path);
-        println!("Litho can execute: {}", diag.litho_can_execute);
-        println!("Litho --help (direct): {}", diag.litho_help_result);
-        println!("Litho via polkit: {}", diag.litho_polkit_result);
+        println!("Polkit status: {}", diag.polkit_status);
         println!("=================================");
     }
 
@@ -861,24 +563,4 @@ mod tests {
         // (this is informational)
     }
 
-    #[test]
-    fn test_litho_binary_help_check() {
-        // Resolve relative to the crate's manifest dir (src-tauri/ when testing the lib).
-        // The binary lives at src-tauri/resources/litho.
-        let litho_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("resources")
-            .join("litho");
-
-        println!("Testing litho --help against: {}", litho_path.display());
-
-        let (can_execute, result) = test_litho_binary_help(&litho_path);
-
-        println!("  can_execute = {}", can_execute);
-        println!("  result      = {}", result);
-
-        // The binary should exist and --help should succeed
-        assert!(litho_path.exists(), "litho binary should be present for this test");
-        assert!(can_execute, "litho --help should succeed: {}", result);
-        assert!(result.contains("SUCCESS"), "result should indicate success");
-    }
 }
