@@ -18,7 +18,7 @@ Clone **lithographer** and its sibling dependency **litho** (required for `libli
 
 ```bash
 $ git clone https://github.com/girish946/lithographer.git
-$ git clone https://github.com/girish946/litho.git
+$ git clone --branch refactor-v1 https://github.com/girish946/litho.git
 $ cd lithographer
 $ npm install
 $ npm run tauri:build

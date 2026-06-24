@@ -16,7 +16,7 @@ jobs:
 
       # liblitho is a path dependency at ../../litho (sibling of this repo).
       - name: Checkout litho
-        run: git clone --depth 1 https://github.com/girish946/litho.git ../litho
+        run: git clone --depth 1 --branch refactor-v1 https://github.com/girish946/litho.git ../litho
 
       - name: install dependencies (ubuntu only)
         run: |
