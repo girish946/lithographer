@@ -120,9 +120,10 @@ fn dev_litho_binary() -> Option<PathBuf> {
     }
 
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    // Prefer release (typically built with real-io for sidecar) over debug (often simulated-io).
     for candidate in [
-        manifest_dir.join("../../litho/target/debug/litho"),
         manifest_dir.join("../../litho/target/release/litho"),
+        manifest_dir.join("../../litho/target/debug/litho"),
         manifest_dir.join(format!(
             "binaries/litho-{}",
             env!("LITHO_TARGET_TRIPLE")

@@ -9,8 +9,8 @@ BIN_DIR="$ROOT/src-tauri/binaries"
 
 mkdir -p "$BIN_DIR"
 
-echo "Building litho CLI (release)..."
-(cd "$LITHO_DIR" && cargo build --release --bin litho)
+echo "Building litho CLI (release, real-io)..."
+(cd "$LITHO_DIR" && cargo build --release --no-default-features --features real-io --bin litho)
 
 TRIPLE="$(rustc --print host-tuple)"
 DEST="$BIN_DIR/litho-${TRIPLE}"
