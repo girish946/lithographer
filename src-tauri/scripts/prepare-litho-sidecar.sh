@@ -10,7 +10,7 @@ BIN_DIR="$ROOT/src-tauri/binaries"
 mkdir -p "$BIN_DIR"
 
 echo "Building litho CLI (release)..."
-(cd "$LITHO_DIR" && cargo build --release --bin litho)
+(cd "$LITHO_DIR" && git checkout refactor-v1 && cargo build --release --bin litho)
 
 TRIPLE="$(rustc --print host-tuple)"
 DEST="$BIN_DIR/litho-${TRIPLE}"
