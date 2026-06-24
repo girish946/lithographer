@@ -14,11 +14,17 @@ GUI for [litho](https://github.com/girish946/litho) written in Rust using [tauri
 As of now lithographer only supports building for Linux. You need to have the [Prerequisites for tauri](https://tauri.app/v1/guides/getting-started/prerequisites/) installed on the system.
 
 
+Clone **lithographer** and its sibling dependency **litho** (required for `liblitho` and the bundled `litho` sidecar):
+
 ```bash
 $ git clone https://github.com/girish946/lithographer.git
+$ git clone https://github.com/girish946/litho.git
 $ cd lithographer
-$ cargo tauri build -b appimage
+$ npm install
+$ npm run tauri:build
 ```
+
+The repos must sit side by side (`…/litho` next to `…/lithographer`). GitHub Actions checks out `litho` the same way.
 
 ## Usage
 ```bash
