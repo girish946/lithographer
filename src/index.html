@@ -265,6 +265,11 @@
                     </div>
                 </div>
                 <div id="device-info" class="mt-2 sm:mt-3 text-xs theme-muted flex flex-wrap items-center gap-2"></div>
+                <div id="fixed-device-warning"
+                     class="hidden mt-2 sm:mt-3 flex items-start gap-2.5 p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-amber-500/30 bg-amber-500/10 text-amber-500 text-xs sm:text-sm">
+                    <i class="fa-solid fa-triangle-exclamation mt-0.5 shrink-0"></i>
+                    <span>This device is not removable. Writing to it can destroy data.</span>
+                </div>
             </div>
 
             <!-- File Selection -->
@@ -329,6 +334,39 @@
             </div>
         </div>
 
+        <!-- Fixed-device confirmation (matches litho-tui NonRemovableConfirm) -->
+        <div id="fixed-device-modal"
+             class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="fixed-device-modal-title">
+            <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="confirmFixedDeviceSelection(false)"></div>
+            <div class="glass relative w-full max-w-md rounded-2xl sm:rounded-3xl border border-amber-500/30 p-5 sm:p-6 shadow-2xl">
+                <div class="flex items-start gap-3 mb-4">
+                    <div class="w-10 h-10 shrink-0 rounded-xl bg-amber-500/15 flex items-center justify-center text-amber-400">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <h2 id="fixed-device-modal-title" class="theme-title font-semibold text-base sm:text-lg">Confirm device selection</h2>
+                        <p class="theme-muted text-xs sm:text-sm mt-1">This device is not removable. Writing to it can destroy data.</p>
+                    </div>
+                </div>
+                <p id="fixed-device-modal-name" class="theme-chip px-3 py-2 rounded-xl text-sm font-medium break-all mb-5"></p>
+                <div class="flex flex-col-reverse sm:flex-row gap-3">
+                    <button type="button"
+                            onclick="confirmFixedDeviceSelection(false)"
+                            class="theme-file-btn-secondary flex-1 border rounded-xl sm:rounded-2xl px-4 py-3 text-sm font-medium transition-colors">
+                        Cancel
+                    </button>
+                    <button type="button"
+                            onclick="confirmFixedDeviceSelection(true)"
+                            class="flex-1 bg-amber-600 hover:bg-amber-500 transition-colors text-white font-semibold rounded-xl sm:rounded-2xl px-4 py-3 text-sm">
+                        Continue
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- Footer -->
         <div class="app-footer theme-footer text-center text-xs flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-5 pb-1">
             <div>Made with ❤️ by <a href="https://github.com/girish946" target="_blank">Girish Joshi</a></div>
@@ -346,7 +384,8 @@
         let selectedDevice = null;
         let selectedFile = null;
         let isRunning = false;
-        let progressInterval = null;
+        let lithoEventUnlisten = null;
+        let pendingFixedDevice = null;
         const THEME_STORAGE_KEY = "lithographer-theme";
 
         const modes = [
@@ -434,6 +473,89 @@
             });
         }
 
+        function sortDevicesRemovableFirst(list) {
+            return [...list].sort((a, b) => {
+                if (a.removable !== b.removable) {
+                    return a.removable ? -1 : 1;
+                }
+                return a.path.localeCompare(b.path);
+            });
+        }
+
+        function defaultDeviceIndex() {
+            const removableIdx = devices.findIndex(d => d.removable);
+            return removableIdx !== -1 ? removableIdx : (devices.length > 0 ? 0 : -1);
+        }
+
+        function deviceIndexByPath(path) {
+            if (!path) return -1;
+            return devices.findIndex(d => d.path === path || d.path.endsWith(path));
+        }
+
+        function updateDeviceInfo() {
+            const infoEl = document.getElementById("device-info");
+            const warningEl = document.getElementById("fixed-device-warning");
+
+            if (!selectedDevice) {
+                infoEl.innerHTML = "";
+                warningEl.classList.add("hidden");
+                return;
+            }
+
+            infoEl.innerHTML = `
+                <span class="theme-chip px-2.5 py-1 rounded-lg break-all">${selectedDevice.path}</span>
+                <span>${selectedDevice.size}</span>
+                ${selectedDevice.removable
+                    ? `<span class="text-emerald-400">● Removable</span>`
+                    : `<span class="text-amber-400">● Fixed</span>`}
+            `;
+
+            if (selectedDevice.removable) {
+                warningEl.classList.add("hidden");
+            } else {
+                warningEl.classList.remove("hidden");
+            }
+        }
+
+        function applyDeviceSelection(index, selectEl) {
+            if (index < 0 || index >= devices.length) {
+                selectedDevice = null;
+                if (selectEl) selectEl.value = "";
+                updateDeviceInfo();
+                return;
+            }
+
+            selectedDevice = devices[index];
+            if (selectEl) selectEl.value = String(index);
+            updateDeviceInfo();
+        }
+
+        function showFixedDeviceConfirm(device, index, selectEl, previousIndex) {
+            pendingFixedDevice = { index, selectEl, previousIndex };
+            document.getElementById("fixed-device-modal-name").textContent =
+                `${device.name} • ${device.path}`;
+            document.getElementById("fixed-device-modal").classList.remove("hidden");
+        }
+
+        function hideFixedDeviceConfirm() {
+            document.getElementById("fixed-device-modal").classList.add("hidden");
+            pendingFixedDevice = null;
+        }
+
+        function confirmFixedDeviceSelection(accept) {
+            const pending = pendingFixedDevice;
+            hideFixedDeviceConfirm();
+            if (!pending) return;
+
+            if (accept) {
+                applyDeviceSelection(pending.index, pending.selectEl);
+            } else if (pending.previousIndex >= 0) {
+                applyDeviceSelection(pending.previousIndex, pending.selectEl);
+            } else {
+                applyDeviceSelection(-1, pending.selectEl);
+            }
+        }
+
         function populateDevices() {
             const select = document.getElementById("diskSelect");
             select.innerHTML = `<option value="">Select a storage device...</option>`;
@@ -446,22 +568,35 @@
             });
         }
 
-        function selectDevice(selectEl) {
+        function selectDevice(selectEl, options = {}) {
+            const { skipConfirm = false } = options;
+
             if (!selectEl.value) {
-                selectedDevice = null;
-                document.getElementById("device-info").innerHTML = "";
+                applyDeviceSelection(-1, selectEl);
                 return;
             }
 
             const index = parseInt(selectEl.value, 10);
-            selectedDevice = devices[index];
+            const device = devices[index];
+            if (!device) {
+                applyDeviceSelection(-1, selectEl);
+                return;
+            }
 
-            const infoEl = document.getElementById("device-info");
-            infoEl.innerHTML = `
-                <span class="theme-chip px-2.5 py-1 rounded-lg break-all">${selectedDevice.path}</span>
-                <span>${selectedDevice.size}</span>
-                ${selectedDevice.removable ? `<span class="text-emerald-400">● Removable</span>` : ""}
-            `;
+            if (!device.removable && !skipConfirm) {
+                const previousIndex = selectedDevice
+                    ? deviceIndexByPath(selectedDevice.path)
+                    : -1;
+                if (previousIndex >= 0) {
+                    selectEl.value = String(previousIndex);
+                } else {
+                    selectEl.value = "";
+                }
+                showFixedDeviceConfirm(device, index, selectEl, previousIndex);
+                return;
+            }
+
+            applyDeviceSelection(index, selectEl);
         }
 
         async function selectFile() {
@@ -551,18 +686,31 @@
 
             try {
                 const realDevices = await tauriInvoke("get_storage_devices");
-                devices = Array.isArray(realDevices) ? realDevices : [];
+                devices = sortDevicesRemovableFirst(Array.isArray(realDevices) ? realDevices : []);
                 populateDevices();
 
                 if (devices.length === 0) {
                     select.innerHTML = `<option value="">No storage devices found</option>`;
                 } else if (previouslySelectedPath) {
-                    const idx = devices.findIndex(d =>
-                        d.path === previouslySelectedPath || d.path.endsWith(previouslySelectedPath)
-                    );
+                    const idx = deviceIndexByPath(previouslySelectedPath);
                     if (idx !== -1) {
+                        const device = devices[idx];
+                        const skipConfirm = device.removable
+                            || (selectedDevice && selectedDevice.path === device.path);
                         select.value = idx;
-                        selectDevice(select);
+                        selectDevice(select, { skipConfirm });
+                    } else {
+                        const defaultIdx = defaultDeviceIndex();
+                        if (defaultIdx !== -1) {
+                            select.value = defaultIdx;
+                            selectDevice(select, { skipConfirm: true });
+                        }
+                    }
+                } else {
+                    const defaultIdx = defaultDeviceIndex();
+                    if (defaultIdx !== -1) {
+                        select.value = defaultIdx;
+                        selectDevice(select, { skipConfirm: true });
                     }
                 }
 
@@ -575,7 +723,86 @@
             }
         }
 
-        function startProcess() {
+        function setOperationStatus(title, titleClass, detailHtml) {
+            const statusEl = document.getElementById("status-text");
+            statusEl.textContent = title;
+            statusEl.className = titleClass;
+            document.getElementById("status-detail").innerHTML = detailHtml;
+        }
+
+        function setProgressPercent(pct) {
+            const clamped = Math.max(0, Math.min(100, pct));
+            document.getElementById("progress-bar").style.width = `${clamped}%`;
+            document.getElementById("progress-text").textContent = `${Math.floor(clamped)}%`;
+        }
+
+        function phaseLabel(phase) {
+            const labels = {
+                preparing: "Preparing",
+                decompressing: "Decompressing",
+                writing: "Writing",
+                verifying: "Verifying",
+                complete: "Complete",
+                failed: "Failed",
+            };
+            return labels[phase] || (phase || "Working");
+        }
+
+        function handleLithoEvent(event) {
+            const payload = event.payload;
+            if (!payload || !payload.type) return;
+
+            switch (payload.type) {
+                case "status": {
+                    const msg = payload.message || phaseLabel(payload.phase);
+                    setOperationStatus(
+                        "IN PROGRESS",
+                        "text-amber-400 font-medium",
+                        `<span class="font-medium">${phaseLabel(payload.phase)}</span> — ${msg}`
+                    );
+                    break;
+                }
+                case "progress": {
+                    const label = phaseLabel(payload.phase);
+                    const pct = typeof payload.pct === "number" ? payload.pct : null;
+                    if (pct !== null) {
+                        setProgressPercent(pct);
+                    }
+                    const detail = payload.message
+                        || (pct !== null ? `${label} ${pct.toFixed(1)}%` : label);
+                    setOperationStatus(
+                        "IN PROGRESS",
+                        "text-amber-400 font-medium",
+                        detail
+                    );
+                    break;
+                }
+                case "error":
+                    setOperationStatus(
+                        "ERROR",
+                        "text-red-400 font-medium",
+                        payload.message || "Operation failed."
+                    );
+                    break;
+                case "done":
+                    if (payload.success) {
+                        finishProcess();
+                    } else {
+                        failProcess(payload.message || "Operation failed.");
+                    }
+                    break;
+                case "raw":
+                    console.log(`[litho ${payload.stream}]`, payload.line);
+                    break;
+            }
+        }
+
+        async function ensureLithoEventListener() {
+            if (lithoEventUnlisten || !window.__TAURI__?.event?.listen) return;
+            lithoEventUnlisten = await window.__TAURI__.event.listen("litho-event", handleLithoEvent);
+        }
+
+        async function startProcess() {
             const needsFile = selectedMode === "flash"
                 ? "Please select a device and a source image file."
                 : "Please select a device and an output image path.";
@@ -587,40 +814,54 @@
 
             if (isRunning) return;
 
+            await ensureLithoEventListener();
+
             isRunning = true;
             document.getElementById("start-button").classList.add("opacity-50", "cursor-not-allowed");
             document.getElementById("cancel-button").classList.remove("hidden");
-
-            const statusEl = document.getElementById("status-text");
-            statusEl.textContent = "IN PROGRESS";
-            statusEl.className = "text-amber-400 font-medium";
+            setProgressPercent(0);
 
             const action = selectedMode === "flash" ? "Writing" : "Cloning";
-            const target = selectedMode === "flash"
-                ? selectedDevice.name
-                : selectedFile.name;
-            document.getElementById("status-detail").innerHTML =
-                `${action} <span class="font-medium">${target}</span>... (simulation)`;
+            const target = selectedMode === "flash" ? selectedDevice.name : selectedFile.name;
+            setOperationStatus(
+                "STARTING",
+                "text-amber-400 font-medium",
+                `${action} <span class="font-medium">${target}</span>…`
+            );
 
-            let progress = 0;
-            const progressBar = document.getElementById("progress-bar");
-            const progressText = document.getElementById("progress-text");
+            try {
+                await tauriInvoke("start_litho_operation", {
+                    mode: selectedMode,
+                    device: selectedDevice.path,
+                    image: selectedFile.path,
+                    blockSize: 4096,
+                });
+                setOperationStatus(
+                    "IN PROGRESS",
+                    "text-amber-400 font-medium",
+                    "Waiting for litho sidecar…"
+                );
+            } catch (err) {
+                console.error("Failed to start litho operation:", err);
+                const message = err && err.message ? err.message : String(err);
+                failProcess(message);
+            }
+        }
 
-            progressInterval = setInterval(() => {
-                progress += Math.random() * 12;
-                if (progress > 100) progress = 100;
-
-                progressBar.style.width = `${progress}%`;
-                progressText.textContent = `${Math.floor(progress)}%`;
-
-                if (progress >= 100) {
-                    clearInterval(progressInterval);
-                    finishProcess();
-                }
-            }, 180);
+        function failProcess(message) {
+            if (!isRunning) return;
+            isRunning = false;
+            document.getElementById("start-button").classList.remove("opacity-50", "cursor-not-allowed");
+            document.getElementById("cancel-button").classList.add("hidden");
+            setOperationStatus(
+                "ERROR",
+                "text-red-400 font-medium",
+                message
+            );
         }
 
         function finishProcess() {
+            if (!isRunning) return;
             isRunning = false;
             document.getElementById("start-button").classList.remove("opacity-50", "cursor-not-allowed");
             document.getElementById("cancel-button").classList.add("hidden");
@@ -632,24 +873,29 @@
             const verb = selectedMode === "flash" ? "flashed" : "cloned";
             const target = selectedMode === "flash" ? selectedDevice.name : selectedFile.name;
             document.getElementById("status-detail").innerHTML =
-                `Successfully ${verb} <span class="font-medium">${target}</span> (simulation)`;
+                `Successfully ${verb} <span class="font-medium">${target}</span>`;
 
             confettiBurst();
         }
 
-        function cancelProcess() {
-            if (progressInterval) clearInterval(progressInterval);
+        async function cancelProcess() {
+            if (!isRunning) return;
+
+            try {
+                await tauriInvoke("cancel_litho_operation");
+            } catch (err) {
+                console.warn("Cancel request failed:", err);
+            }
+
             isRunning = false;
-
-            document.getElementById("progress-bar").style.width = "0%";
-            document.getElementById("progress-text").textContent = "0%";
-
+            setProgressPercent(0);
             document.getElementById("start-button").classList.remove("opacity-50", "cursor-not-allowed");
             document.getElementById("cancel-button").classList.add("hidden");
-
-            document.getElementById("status-text").textContent = "CANCELLED";
-            document.getElementById("status-text").className = "text-orange-400 font-medium";
-            document.getElementById("status-detail").textContent = "Operation cancelled by user.";
+            setOperationStatus(
+                "CANCELLED",
+                "text-orange-400 font-medium",
+                "Operation cancelled by user."
+            );
         }
 
         function confettiBurst() {
@@ -756,20 +1002,18 @@
                 }
 
                 if (params.device) {
-                    let idx = devices.findIndex(d =>
-                        d.path === params.device || d.path.endsWith(params.device)
-                    );
+                    let idx = deviceIndexByPath(params.device);
 
                     if (idx === -1) {
-                        devices.push({
+                        devices = sortDevicesRemovableFirst(devices.concat([{
                             name: basename(params.device),
                             path: params.device,
                             size: "Unknown size",
-                            removable: true,
+                            removable: false,
                             model: "From args"
-                        });
+                        }]));
                         populateDevices();
-                        idx = devices.length - 1;
+                        idx = deviceIndexByPath(params.device);
                     }
 
                     const select = document.getElementById("diskSelect");
@@ -786,13 +1030,26 @@
         }
 
         function handleKeyboard(e) {
+            const modalOpen = pendingFixedDevice !== null;
+
+            if (modalOpen) {
+                if (e.key === "Escape") {
+                    e.preventDefault();
+                    confirmFixedDeviceSelection(false);
+                } else if (e.key === "Enter") {
+                    e.preventDefault();
+                    confirmFixedDeviceSelection(true);
+                }
+                return;
+            }
+
             if (e.key === "/" && document.activeElement.tagName !== "INPUT" && document.activeElement.tagName !== "TEXTAREA") {
                 e.preventDefault();
                 document.getElementById("diskSelect").focus();
             }
         }
 
-        window.onload = function() {
+        window.onload = async function() {
             initTheme();
             renderModes();
             updateStartButton();
@@ -803,8 +1060,9 @@
             console.log("%cLithographer UI ✅", "color:#60a5fa; font-family:monospace; font-size:13px");
 
             loadPrivilegeStatus();
-            loadStorageDevices();
-            applyLaunchParamsIfAny();
+            await loadStorageDevices();
+            await applyLaunchParamsIfAny();
+            ensureLithoEventListener();
         };
     </script>
 </body>

@@ -2352,7 +2352,6 @@ dependencies = [
 [[package]]
 name = "liblitho"
 version = "0.1.0"
-source = "git+https://github.com/girish946/litho?branch=refactor-v1#d0f21f16a1afe11ecd9c70ca25af4c2dd067978c"
 dependencies = [
  "anyhow",
  "clap",

@@ -1,11 +1,21 @@
+mod litho_output;
+mod litho_runner;
+mod litho_sidecar;
+
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
+use litho_runner::{
+    cancel_litho_operation as stop_litho_child, spawn_litho_operation, LithoRunRequest,
+    LithoRunnerState, SharedLithoRunner,
+};
+
 use std::fs;
 use std::process::Command;
+use std::sync::{Arc, Mutex};
 
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
@@ -104,7 +114,7 @@ fn get_current_user() -> String {
         .unwrap_or_else(|_| "unknown".to_string())
 }
 
-fn is_running_as_root() -> bool {
+pub(crate) fn is_running_as_root() -> bool {
     if let Ok(output) = Command::new("id").arg("-u").output() {
         let uid = String::from_utf8_lossy(&output.stdout).trim().to_string();
         uid == "0"
@@ -252,118 +262,48 @@ fn get_startup_diagnostics() -> StartupDiagnostics {
     perform_startup_checks()
 }
 
-/// Returns a path to the current application executable that is safe to pass to pkexec.
-/// 
-/// When running as an AppImage, we prefer the $APPIMAGE environment variable
-/// (the real .AppImage file on disk) because the FUSE mount is usually not
-/// accessible to the root user invoked by pkexec.
-fn get_app_executable_for_privileged() -> Result<std::path::PathBuf, String> {
-    // Best case for AppImages: $APPIMAGE points to the real file on a normal filesystem.
-    if let Ok(appimage) = std::env::var("APPIMAGE") {
-        let p = std::path::PathBuf::from(appimage);
-        if p.exists() {
-            // Ensure it is executable (defensive).
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                if let Ok(meta) = std::fs::metadata(&p) {
-                    let mut perms = meta.permissions();
-                    if perms.mode() & 0o111 == 0 {
-                        perms.set_mode(0o755);
-                        let _ = std::fs::set_permissions(&p, perms);
-                    }
-                }
-            }
-            return Ok(p);
-        }
-    }
-
-    // Fallback: current_exe(). For normal installs / development this is usually fine.
-    // If we are inside a mount point without APPIMAGE we may still have problems,
-    // but callers can handle the error from pkexec.
-    std::env::current_exe()
-        .map_err(|e| format!("Failed to determine current executable path: {}", e))
-}
-
-/// Request that the application be re-launched with the given arguments
-/// under privilege elevation (via pkexec).
-///
-/// This is the on-demand API. It is not called automatically at startup.
-/// The caller (usually the frontend) should pass the current mode/device/image
-/// the user wants to operate on. The elevated instance will receive them
-/// via the normal launch argument parsing and can pre-fill the UI (or
-/// even start the operation directly if desired).
-///
-/// On success this function will cause the current (unprivileged) instance
-/// to exit after spawning the elevated copy.
+/// Spawn the litho CLI sidecar (via pkexec when not root) and stream GUI protocol
+/// lines back to the frontend as `litho-event` payloads.
 #[tauri::command]
-fn relaunch_elevated(
+fn start_litho_operation(
     app: tauri::AppHandle,
-    mode: Option<String>,
-    device: Option<String>,
-    image: Option<String>,
+    state: tauri::State<'_, SharedLithoRunner>,
+    mode: String,
+    device: String,
+    image: String,
+    block_size: Option<usize>,
 ) -> Result<(), String> {
-    let exe = get_app_executable_for_privileged()?;
-
-    let mut cmd_args: Vec<String> = Vec::new();
-
-    if let Some(m) = mode {
-        let lower = m.to_lowercase();
-        let normalized = if lower == "clone" || lower == "backup" {
-            "clone".to_string()
-        } else {
-            "flash".to_string()
-        };
-        cmd_args.push("--mode".to_string());
-        cmd_args.push(normalized);
+    let diag = perform_startup_checks();
+    if !diag.is_root && !diag.polkit_agent_is_executable {
+        return Err(
+            "No polkit authentication agent found. Start your desktop polkit agent.".to_string(),
+        );
     }
 
-    if let Some(d) = device {
-        cmd_args.push("--device".to_string());
-        cmd_args.push(d);
-    }
+    let known_devices = query_storage_devices()?;
+    let known_paths: Vec<String> = known_devices.iter().map(|d| d.path.clone()).collect();
+    litho_devices::validate_listed_block_device(&device, &known_paths)?;
 
-    if let Some(i) = image {
-        cmd_args.push("--image".to_string());
-        cmd_args.push(i);
-    }
-
-    // If we are already running as root we can just restart the current process
-    // with the desired arguments (no pkexec needed).
-    if is_running_as_root() {
-        let mut cmd = std::process::Command::new(&exe);
-        cmd.args(&cmd_args);
-        // Spawn a new instance and exit this one.
-        let _ = cmd.spawn();
-        app.exit(0);
-        return Ok(());
-    }
-
-    // Normal case: ask pkexec to run our executable with the args.
-    let mut cmd = std::process::Command::new("pkexec");
-    cmd.arg(&exe);
-    cmd.args(&cmd_args);
-
-    match cmd.spawn() {
-        Ok(_) => {
-            // Successfully asked for elevation. The polkit agent (if any)
-            // will present a dialog. Exit the current unprivileged instance.
-            app.exit(0);
-            Ok(())
-        }
-        Err(e) => Err(format!(
-            "Failed to spawn pkexec for re-launch: {}. Is a polkit agent running?",
-            e
-        )),
-    }
+    spawn_litho_operation(
+        app,
+        Arc::clone(state.inner()),
+        LithoRunRequest {
+            mode,
+            device,
+            image,
+            block_size: block_size.unwrap_or(4096),
+        },
+    )
 }
 
-/// Returns a path to the current application binary that can safely be passed to pkexec.
-/// Exposed so the frontend (or other code) can inspect what would be re-launched.
 #[tauri::command]
-fn get_usable_app_path_for_privileged() -> Result<String, String> {
-    get_app_executable_for_privileged()
-        .map(|p| p.to_string_lossy().to_string())
+fn cancel_litho_operation(state: tauri::State<'_, SharedLithoRunner>) -> Result<(), String> {
+    stop_litho_child(state.inner())
+}
+
+#[tauri::command]
+fn get_litho_sidecar_path(app: tauri::AppHandle) -> Result<String, String> {
+    litho_sidecar::resolve_litho_binary(&app).map(|p| p.to_string_lossy().to_string())
 }
 
 // Device enumeration and disk I/O use the litho Rust library (liblitho) in-process.
@@ -423,7 +363,7 @@ fn query_storage_devices() -> Result<Vec<StorageDeviceInfo>, String> {
 
             StorageDeviceInfo {
                 name,
-                path: raw.device_name,
+                path: raw.device_name.clone(),
                 size: format_size_from_sectors(raw.size),
                 removable: raw.removable != 0,
                 model: model.to_string(),
@@ -476,16 +416,20 @@ fn pick_image_path(mode: String) -> Result<Option<String>, String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let litho_runner: SharedLithoRunner = Arc::new(Mutex::new(LithoRunnerState::default()));
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .manage(litho_runner)
         .invoke_handler(tauri::generate_handler![
             greet,
             get_startup_diagnostics,
-            get_usable_app_path_for_privileged,
             get_launch_params,
             get_storage_devices,
             pick_image_path,
-            relaunch_elevated
+            start_litho_operation,
+            cancel_litho_operation,
+            get_litho_sidecar_path
         ])
         .setup(|_app| {
             let diag = perform_startup_checks();
@@ -508,9 +452,7 @@ pub fn run() {
             let launch = parse_launch_args();
             println!("Launch params       : mode={:?}, device={:?}, image={:?}", launch.mode, launch.device, launch.image);
 
-            // Privileged re-launch of the *application* (with the same args) is now
-            // available on demand via the `relaunch_elevated` Tauri command.
-            // It is not invoked automatically at startup.
+            // Privileged flash/clone runs via the litho CLI sidecar (`start_litho_operation`).
 
             // After startup diagnostics, query storage devices using the Rust API directly
             // (imported liblitho::devices::get_storage_devices).
@@ -539,10 +481,10 @@ pub fn run() {
                 println!("Polkit agent looks ready for privilege escalation requests.");
             }
 
-            // Note: full privileged elevation (pkexec re-launch of the app with args)
-            // is no longer performed automatically at startup.
-            // The relaunch_elevated command should be called later when the user
-            // actually wants to perform a privileged flash/clone operation.
+            match litho_sidecar::resolve_litho_binary(_app.handle()) {
+                Ok(path) => println!("Litho sidecar         : {}", path.display()),
+                Err(e) => eprintln!("⚠️  Litho sidecar missing: {e}"),
+            }
 
             Ok(())
         })
