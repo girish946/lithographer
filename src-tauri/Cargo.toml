@@ -30,7 +30,7 @@ rfd = "0.15"
 # Depend on the litho package (liblitho) to use its Rust APIs directly
 # (e.g. get_storage_devices for device enumeration).
 # We are NOT bundling the separate `litho` binary for now.
-liblitho = {git = "https://github.com/girish946/litho", "branch"= "refactor-v1"} # { path = "../../litho" }
+liblitho = { path = "../../litho" }
 
 # Pin webkit2gtk + enable a feature that exists in the 0.18 series.
 # We use `v2_38` because it is the highest feature available in webkit2gtk 0.18.x

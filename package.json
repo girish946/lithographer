@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "tauri": "tauri",
-    "tauri:build": "tauri build && bash src-tauri/scripts/patch-appimage-wayland.sh"
+    "tauri:build": "bash src-tauri/scripts/prepare-litho-sidecar.sh && tauri build && bash src-tauri/scripts/patch-appimage-wayland.sh",
+    "prepare-sidecar": "bash src-tauri/scripts/prepare-litho-sidecar.sh"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2"
