@@ -296,6 +296,21 @@
                 </div>
             </div>
 
+            <!-- Verification (flash only) -->
+            <div id="verify-section" class="section-block">
+                <label class="theme-label block text-xs sm:text-sm font-medium mb-2 sm:mb-3 tracking-widest">VERIFICATION</label>
+                <label class="theme-file-btn flex items-start gap-3 border rounded-xl sm:rounded-2xl px-4 sm:px-5 py-3 sm:py-4 cursor-pointer">
+                    <input type="checkbox"
+                           id="verify-checkbox"
+                           class="mt-1 h-4 w-4 rounded border-gray-500 text-blue-500 focus:ring-blue-500"
+                           onchange="verifyChecksum = this.checked">
+                    <span class="min-w-0">
+                        <span class="block text-sm font-medium theme-title">Verify checksum after write</span>
+                        <span class="block text-xs theme-muted mt-1">Reads the device back and compares SHA-256 checksums. Slower, but confirms the image was written correctly.</span>
+                    </span>
+                </label>
+            </div>
+
             <!-- Status -->
             <div class="section-block theme-status-panel border rounded-xl sm:rounded-2xl p-4 sm:p-5 terminal">
                 <div class="flex justify-between items-center text-xs mb-2 theme-muted gap-2">
@@ -383,6 +398,7 @@
         let selectedMode = "flash";
         let selectedDevice = null;
         let selectedFile = null;
+        let verifyChecksum = false;
         let isRunning = false;
         let lithoEventUnlisten = null;
         let pendingFixedDevice = null;
@@ -468,6 +484,7 @@
                     renderModes();
                     updateStartButton();
                     updateFileSection();
+                    updateVerifySection();
                 };
                 container.appendChild(div);
             });
@@ -617,6 +634,18 @@
         function updateStartButton() {
             const btnText = document.getElementById("start-text");
             btnText.textContent = selectedMode === "flash" ? "START FLASH" : "START CLONE";
+        }
+
+        function updateVerifySection() {
+            const section = document.getElementById("verify-section");
+            const checkbox = document.getElementById("verify-checkbox");
+            const show = selectedMode === "flash";
+            section.classList.toggle("hidden", !show);
+            checkbox.disabled = isRunning || !show;
+            if (!show) {
+                verifyChecksum = false;
+                checkbox.checked = false;
+            }
         }
 
         function applyPrivilegeBadge(kind, text, title) {
@@ -817,6 +846,7 @@
             await ensureLithoEventListener();
 
             isRunning = true;
+            updateVerifySection();
             document.getElementById("start-button").classList.add("opacity-50", "cursor-not-allowed");
             document.getElementById("cancel-button").classList.remove("hidden");
             setProgressPercent(0);
@@ -834,7 +864,8 @@
                     mode: selectedMode,
                     device: selectedDevice.path,
                     image: selectedFile.path,
-                    blockSize: 4096,
+                    verify: selectedMode === "flash"
+                        && document.getElementById("verify-checkbox").checked,
                 });
                 setOperationStatus(
                     "IN PROGRESS",
@@ -851,6 +882,7 @@
         function failProcess(message) {
             if (!isRunning) return;
             isRunning = false;
+            updateVerifySection();
             document.getElementById("start-button").classList.remove("opacity-50", "cursor-not-allowed");
             document.getElementById("cancel-button").classList.add("hidden");
             setOperationStatus(
@@ -863,6 +895,7 @@
         function finishProcess() {
             if (!isRunning) return;
             isRunning = false;
+            updateVerifySection();
             document.getElementById("start-button").classList.remove("opacity-50", "cursor-not-allowed");
             document.getElementById("cancel-button").classList.add("hidden");
 
@@ -888,6 +921,7 @@
             }
 
             isRunning = false;
+            updateVerifySection();
             setProgressPercent(0);
             document.getElementById("start-button").classList.remove("opacity-50", "cursor-not-allowed");
             document.getElementById("cancel-button").classList.add("hidden");
@@ -999,6 +1033,7 @@
                     renderModes();
                     updateStartButton();
                     updateFileSection();
+                    updateVerifySection();
                 }
 
                 if (params.device) {
@@ -1054,6 +1089,7 @@
             renderModes();
             updateStartButton();
             updateFileSection();
+            updateVerifySection();
 
             document.addEventListener("keydown", handleKeyboard);
 

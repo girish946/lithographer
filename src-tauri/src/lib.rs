@@ -264,6 +264,9 @@ fn get_startup_diagnostics() -> StartupDiagnostics {
 
 /// Spawn the litho CLI sidecar (via pkexec when not root) and stream GUI protocol
 /// lines back to the frontend as `litho-event` payloads.
+///
+/// When `block_size` is omitted, picks the largest I/O buffer allowed for the target
+/// device (same table as historical Lithographer `execute` / litho-tui).
 #[tauri::command]
 fn start_litho_operation(
     app: tauri::AppHandle,
@@ -272,6 +275,7 @@ fn start_litho_operation(
     device: String,
     image: String,
     block_size: Option<usize>,
+    verify: Option<bool>,
 ) -> Result<(), String> {
     let diag = perform_startup_checks();
     if !diag.is_root && !diag.polkit_agent_is_executable {
@@ -284,6 +288,10 @@ fn start_litho_operation(
     let known_paths: Vec<String> = known_devices.iter().map(|d| d.path.clone()).collect();
     litho_devices::validate_listed_block_device(&device, &known_paths)?;
 
+    let io_block_size = block_size
+        .unwrap_or_else(|| litho_devices::optimal_io_block_size(&device));
+    let verify = verify.unwrap_or(false);
+
     spawn_litho_operation(
         app,
         Arc::clone(state.inner()),
@@ -291,7 +299,8 @@ fn start_litho_operation(
             mode,
             device,
             image,
-            block_size: block_size.unwrap_or(4096),
+            block_size: io_block_size,
+            verify,
         },
     )
 }

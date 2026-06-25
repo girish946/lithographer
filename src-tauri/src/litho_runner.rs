@@ -29,6 +29,7 @@ pub struct LithoRunRequest {
     pub device: String,
     pub image: String,
     pub block_size: usize,
+    pub verify: bool,
 }
 
 pub fn spawn_litho_operation(
@@ -65,6 +66,10 @@ pub fn spawn_litho_operation(
         request.block_size.to_string(),
     ];
 
+    if subcommand == "flash" && request.verify {
+        litho_args.push("--verify".to_string());
+    }
+
     let mut cmd = if is_running_as_root() {
         let mut c = Command::new(&litho_path);
         c.args(&litho_args);
@@ -81,7 +86,8 @@ pub fn spawn_litho_operation(
     cmd.stdin(Stdio::null());
 
     println!(
-        "Spawning litho sidecar: {} {:?}",
+        "Spawning litho sidecar (verify={}): {} {:?}",
+        request.verify,
         if is_running_as_root() {
             litho_path.display().to_string()
         } else {
