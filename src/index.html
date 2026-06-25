@@ -4,13 +4,37 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lithographer • SD Card Writer</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600&amp;display=swap');
+    
+    <!-- 
+      ╔════════════════════════════════════════════════════════════╗
+      ║  POLISHED VERSION — Designed for Oat UI Framework          ║
+      ║  https://oat.ink/   (Ultra-lightweight, zero-dependency)   ║
+      ╠════════════════════════════════════════════════════════════╣
+      ║  This UI is built with clean semantic HTML so it works     ║
+      ║  beautifully with Oat (and other minimal frameworks).      ║
+      ║                                                            ║
+      ║  To switch to pure Oat UI:                                 ║
+      ║   1. Download oat.css + oat.js from https://github.com/knadh/oat
+      ║   2. Replace the Tailwind + Font Awesome CDNs below        ║
+      ║   3. Remove most utility classes — Oat styles <button>,    ║
+      ║      <select>, <progress>, <dialog>, .card, forms, etc.    ║
+      ║      automatically with ~8KB total.                        ║
+      ║   4. Keep only the app-specific CSS (theme vars, progress, ║
+      ║      mode cards, status panel, confetti, etc.)             ║
+      ║                                                            ║
+      ║  Result: Blazing fast, native-feeling desktop utility UI.  ║
+      ╚════════════════════════════════════════════════════════════╝
+    -->
+    
+    <!-- Bundled vendor assets (see scripts/vendor-frontend-assets.sh) -->
+    <script src="vendor/tailwindcss-3.4.17.js"></script>
+    <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="vendor/fonts/fonts.css">
 
+    <style>
         :root {
-            --accent: #60a5fa;
+            --accent: #22d3ee;
+            --accent-dark: #06b6d4;
         }
 
         html {
@@ -18,9 +42,9 @@
         }
 
         html[data-theme="dark"] {
-            --bg: #09090b;
+            --bg: #0a0a0b;
             --text: #e4e4e7;
-            --text-strong: #ffffff;
+            --text-strong: #fafafa;
             --text-muted: #a1a1aa;
             --text-faint: #71717a;
             --surface: #18181b;
@@ -28,367 +52,405 @@
             --surface-hover: #3f3f46;
             --border: #3f3f46;
             --border-subtle: #27272a;
-            --card: rgba(15, 23, 42, 0.95);
+            --card: #18181b;
             --chip: #27272a;
-            --icon-btn-hover: #18181b;
+            --icon-btn-hover: #27272a;
             --footer-divider: #27272a;
-            --mode-idle-bg: transparent;
+            --mode-idle-bg: #18181b;
             --mode-idle-border: #3f3f46;
             --mode-idle-hover: #52525b;
-            --mode-active-bg: rgb(15, 23, 42);
-            --mode-active-border: #60a5fa;
+            --mode-active-bg: #0f172a;
+            --mode-active-border: #22d3ee;
             --mode-active-text: #e0f2fe;
-            --badge-unknown-bg: rgba(39, 39, 42, 0.8);
+            --badge-unknown-bg: #27272a;
             --badge-unknown-text: #a1a1aa;
             --badge-unknown-border: #3f3f46;
+            --success: #4ade80;
+            --warning: #fbbf24;
+            --danger: #f87171;
+            --info: #60a5fa;
         }
 
         html[data-theme="light"] {
-            --bg: #f4f4f5;
+            --bg: #f8f8f9;
             --text: #3f3f46;
-            --text-strong: #09090b;
+            --text-strong: #111113;
             --text-muted: #52525b;
             --text-faint: #71717a;
             --surface: #ffffff;
-            --surface-raised: #fafafa;
-            --surface-hover: #f4f4f5;
+            --surface-raised: #f4f4f5;
+            --surface-hover: #f1f1f3;
             --border: #d4d4d8;
             --border-subtle: #e4e4e7;
-            --card: rgba(255, 255, 255, 0.96);
+            --card: #ffffff;
             --chip: #f4f4f5;
             --icon-btn-hover: #e4e4e7;
             --footer-divider: #d4d4d8;
-            --mode-idle-bg: #fafafa;
+            --mode-idle-bg: #ffffff;
             --mode-idle-border: #d4d4d8;
             --mode-idle-hover: #a1a1aa;
-            --mode-active-bg: #eff6ff;
-            --mode-active-border: #3b82f6;
-            --mode-active-text: #1d4ed8;
+            --mode-active-bg: #ecfeff;
+            --mode-active-border: #06b6d4;
+            --mode-active-text: #164e63;
             --badge-unknown-bg: #f4f4f5;
             --badge-unknown-text: #71717a;
             --badge-unknown-border: #d4d4d8;
+            --success: #16a34a;
+            --warning: #ca8a04;
+            --danger: #dc2626;
+            --info: #2563eb;
         }
 
         body {
-            font-family: 'Inter', system-ui, sans-serif;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
             min-height: 100%;
-            height: auto;
-            overflow-y: auto;
-            overflow-x: hidden;
             background-color: var(--bg);
             color: var(--text);
             transition: background-color 0.2s ease, color 0.2s ease;
         }
 
         .logo-font {
-            font-family: 'Space Grotesk', sans-serif;
+            font-family: 'Space Grotesk', 'Inter', sans-serif;
+            letter-spacing: -0.025em;
         }
-
-        .theme-title { color: var(--text-strong); }
-        .theme-muted { color: var(--text-faint); }
-        .theme-label { color: var(--text-muted); }
-        .theme-footer { color: var(--text-faint); }
-        .theme-footer a:hover { color: var(--text-muted); }
 
         .glass {
             background: var(--card);
-            backdrop-filter: blur(20px);
-            border-color: var(--border-subtle) !important;
-            transition: background-color 0.2s ease, border-color 0.2s ease;
+            border: 1px solid var(--border-subtle);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05);
         }
 
-        .theme-select,
-        .theme-file-btn,
-        .theme-file-btn-secondary {
-            background-color: var(--surface);
-            border-color: var(--border);
-            color: var(--text-strong);
+        .section-label {
+            font-size: 0.6875rem;
+            letter-spacing: 0.125em;
+            text-transform: uppercase;
+            font-weight: 600;
+            color: var(--text-faint);
+            margin-bottom: 0.5rem;
         }
 
-        .theme-file-btn:hover,
-        .theme-file-btn-secondary:hover {
-            background-color: var(--surface-hover);
-            border-color: #3b82f6;
+        .mode-card {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            background: var(--mode-idle-bg);
+            border: 1px solid var(--mode-idle-border);
         }
-
-        .theme-status-panel {
-            background-color: color-mix(in srgb, var(--surface) 70%, transparent);
-            border-color: var(--border-subtle);
-        }
-
-        .theme-progress-track { background-color: var(--surface-raised); }
-        .theme-icon-btn:hover { background-color: var(--icon-btn-hover); }
-        .theme-chip { background-color: var(--chip); }
-        .theme-footer-divider { background-color: var(--footer-divider); }
-        .theme-cancel-btn {
-            background-color: var(--surface);
-            border-color: color-mix(in srgb, #ef4444 30%, transparent);
-        }
-        .theme-cancel-btn:hover {
-            background-color: #fef2f2;
-            border-color: #ef4444;
-        }
-
-        html[data-theme="dark"] .theme-cancel-btn:hover {
-            background-color: #450a0a;
-        }
-
-        .main-logo-wrap {
-            background-color: var(--surface);
-            border-color: var(--border);
-        }
-
-        .theme-icon-btn { color: var(--text-muted); }
-
-        .card {
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        @media (hover: hover) {
-            .card:hover {
-                transform: translateY(-4px);
-                box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-            }
-        }
-
-        .mode-option {
-            transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
-        }
-
-        .mode-option {
-            background-color: var(--mode-idle-bg);
-            border-color: var(--mode-idle-border);
-            color: var(--text);
-        }
-
-        .mode-option:not(.active):hover {
+        
+        .mode-card:hover:not(.active) {
             border-color: var(--mode-idle-hover);
+            transform: translateY(-1px);
         }
-
-        .mode-option.active {
-            background-color: var(--mode-active-bg);
+        
+        .mode-card.active {
+            background: var(--mode-active-bg);
             border-color: var(--mode-active-border);
             color: var(--mode-active-text);
-            box-shadow: 0 0 0 3px color-mix(in srgb, var(--mode-active-border) 30%, transparent);
+            box-shadow: 0 0 0 1px var(--mode-active-border);
         }
 
-        .privilege-badge--unknown {
-            background-color: var(--badge-unknown-bg);
-            color: var(--badge-unknown-text);
-            border-color: var(--badge-unknown-border);
+        .mode-card.active .mode-icon {
+            background: color-mix(in srgb, var(--mode-active-border) 15%, transparent);
+            color: var(--mode-active-border);
+        }
+
+        .theme-select {
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text-strong);
+            transition: all 0.15s ease;
+        }
+        
+        .theme-select:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
+            outline: none;
+        }
+
+        .file-btn {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            transition: all 0.2s ease;
+        }
+        
+        .file-btn:hover {
+            border-color: var(--accent);
+            background: var(--surface-hover);
+        }
+
+        .status-panel {
+            background: var(--surface);
+            border: 1px solid var(--border-subtle);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
+
+        .progress-track {
+            background: var(--surface-raised);
+            border-radius: 9999px;
+            overflow: hidden;
+            height: 6px;
         }
 
         .progress-bar {
-            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            height: 100%;
+            background: linear-gradient(to right, #22d3ee, #06b6d4);
+            transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 9999px;
         }
 
-        .terminal {
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-            font-size: clamp(0.75rem, 2.5vw, 0.85rem);
+        .pill {
+            background: var(--chip);
+            border: 1px solid var(--border-subtle);
+            font-size: 0.75rem;
+            padding: 0.125rem 0.625rem;
+            border-radius: 9999px;
+            white-space: nowrap;
+        }
+
+        .main-logo-wrap {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+
+        .control-primary {
+            background: linear-gradient(135deg, #22d3ee, #06b6d4);
+            color: white;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+            transition: all 0.15s ease;
+            box-shadow: 0 10px 15px -3px rgb(6 182 212 / 0.3), 0 4px 6px -4px rgb(6 182 212 / 0.3);
+        }
+        
+        .control-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 20px 25px -5px rgb(6 182 212 / 0.3), 0 8px 10px -6px rgb(6 182 212 / 0.3);
+        }
+        
+        .control-primary:active {
+            transform: scale(0.985);
+        }
+
+        .terminal-text {
+            font-size: 0.875rem;
+            line-height: 1.5;
         }
 
         .app-shell {
-            width: 100%;
-            max-width: min(48rem, 100%);
+            max-width: 42rem;
+            margin-left: auto;
+            margin-right: auto;
         }
 
-        .section-block {
-            margin-bottom: 1.25rem;
-        }
-
-        @media (min-width: 640px) {
-            .section-block {
-                margin-bottom: 1.75rem;
-            }
+        .litho-accent {
+            color: #22d3ee;
         }
 
         @media (max-width: 380px) {
-            .mode-option .mode-icon-wrap {
-                width: 2.5rem;
-                height: 2.5rem;
-                font-size: 1.25rem;
+            .mode-card .mode-icon-wrap {
+                width: 2.75rem;
+                height: 2.75rem;
             }
         }
     </style>
 </head>
-<body>
-    <div class="app-shell mx-auto w-full px-3 sm:px-6 lg:px-8 py-3 sm:py-4 flex flex-col gap-4 sm:gap-6">
+<body class="py-6 sm:py-8 px-4">
+    <div class="app-shell w-full">
         <!-- Header -->
-        <div class="main-header flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between shrink-0">
-            <div class="flex items-center gap-3 sm:gap-4 min-w-0">
-                <div class="main-logo-wrap w-14 h-14 sm:w-16 sm:h-16 shrink-0 rounded-2xl flex items-center justify-center border overflow-hidden">
-                    <img id="app-logo"
-                         src="assets/dark-logo.jpg"
-                         alt="Lithographer"
-                         class="w-12 h-12 sm:w-14 sm:h-14 object-contain">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+            <div class="flex items-center gap-4">
+                <div class="main-logo-wrap w-16 h-16 sm:w-20 sm:h-20 rounded-3xl flex items-center justify-center border overflow-hidden shadow-sm">
+                    <img id="app-logo" 
+                         src="assets/dark-logo.jpg" 
+                         alt="Lithographer" 
+                         class="w-14 h-14 sm:w-16 sm:h-16 object-contain">
                 </div>
-                <div class="min-w-0">
-                    <h1 class="main-title theme-title logo-font text-2xl sm:text-3xl font-semibold tracking-tighter truncate">lithographer</h1>
-                    <p class="header-tagline theme-muted text-xs sm:text-sm -mt-0.5 truncate">SD Card • NVMe • USB Writer</p>
+                <div>
+                    <h1 class="logo-font text-3xl sm:text-4xl font-semibold tracking-tighter text-[var(--text-strong)]">lithographer</h1>
+                    <p class="text-sm text-[var(--text-faint)] -mt-1">SD Card • NVMe • USB Writer</p>
                 </div>
             </div>
 
-            <div class="flex items-center gap-2 sm:gap-3 text-sm self-start sm:self-auto shrink-0">
+            <div class="flex items-center gap-2.5">
+                <!-- Privilege Badge -->
                 <div id="privilege-badge"
-                     title="Checking privilege status..."
-                     class="privilege-badge privilege-badge--unknown flex items-center gap-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-full border">
+                     class="privilege-badge flex items-center gap-x-2 px-3.5 py-1.5 rounded-2xl border text-sm font-medium"
+                     title="Checking privilege status...">
                     <i id="privilege-icon" class="fa-solid fa-shield-halved text-xs"></i>
                     <span id="privilege-text" class="font-medium text-xs sm:text-sm">Checking…</span>
                 </div>
-                <button type="button" onclick="toggleTheme()" title="Toggle light/dark theme"
-                     class="theme-icon-btn w-9 h-9 flex items-center justify-center rounded-xl cursor-pointer transition-colors">
-                    <i id="theme-icon" class="fa-solid fa-sun"></i>
+
+                <!-- Theme Toggle -->
+                <button type="button" onclick="toggleTheme()" 
+                        class="w-10 h-10 flex items-center justify-center rounded-2xl border border-[var(--border)] hover:bg-[var(--icon-btn-hover)] transition-colors"
+                        title="Toggle theme">
+                    <i id="theme-icon" class="fa-solid fa-sun text-lg"></i>
                 </button>
             </div>
         </div>
 
-        <div class="glass rounded-2xl sm:rounded-3xl border p-4 sm:p-6 lg:p-8 shadow-2xl">
+        <!-- Main Content Card -->
+        <div class="glass rounded-3xl p-6 sm:p-8 shadow-xl border border-[var(--border-subtle)]">
+            
             <!-- Mode Selection -->
-            <div class="section-block">
-                <label class="theme-label block text-xs sm:text-sm font-medium mb-2 sm:mb-3 tracking-widest">OPERATION MODE</label>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4" id="mode-select">
-                    <!-- Populated by JS -->
+            <div class="mb-8">
+                <div class="section-label">OPERATION MODE</div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="mode-select">
+                    <!-- Populated by JS or static cards -->
                 </div>
             </div>
 
-            <!-- Device Selection -->
-            <div class="section-block">
-                <label class="theme-label block text-xs sm:text-sm font-medium mb-2 sm:mb-3 tracking-widest">TARGET DEVICE</label>
+            <!-- Target Device -->
+            <div class="mb-8">
+                <div class="section-label">TARGET DEVICE</div>
+                
                 <div class="relative">
-                    <select id="diskSelect"
+                    <select id="diskSelect" 
                             onchange="selectDevice(this)"
-                            class="theme-select w-full border focus:border-blue-500 rounded-xl sm:rounded-2xl px-4 sm:px-5 py-3 sm:py-4 text-sm sm:text-base appearance-none focus:outline-none cursor-pointer">
+                            class="theme-select w-full border rounded-2xl px-5 py-3.5 text-[15px] appearance-none cursor-pointer pr-12">
                         <option value="">Select a storage device...</option>
                     </select>
-                    <div class="pointer-events-none absolute right-4 sm:right-5 top-1/2 -translate-y-1/2 theme-muted">
-                        <i class="fa-solid fa-chevron-down"></i>
+                    <div class="pointer-events-none absolute right-5 top-1/2 -translate-y-1/2 text-[var(--text-faint)]">
+                        <i class="fa-solid fa-chevron-down text-sm"></i>
                     </div>
                 </div>
-                <div id="device-info" class="mt-2 sm:mt-3 text-xs theme-muted flex flex-wrap items-center gap-2"></div>
+                
+                <div id="device-info" class="mt-3 flex flex-wrap items-center gap-2 text-sm"></div>
+                
                 <div id="fixed-device-warning"
-                     class="hidden mt-2 sm:mt-3 flex items-start gap-2.5 p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-amber-500/30 bg-amber-500/10 text-amber-500 text-xs sm:text-sm">
+                     class="hidden mt-3 flex items-start gap-3 p-4 rounded-2xl border border-amber-400/30 bg-amber-400/10 text-amber-600 dark:text-amber-400 text-sm">
                     <i class="fa-solid fa-triangle-exclamation mt-0.5 shrink-0"></i>
-                    <span>This device is not removable. Writing to it can destroy data.</span>
+                    <span class="leading-snug">This device is not removable. Writing to it can destroy data.</span>
                 </div>
             </div>
 
             <!-- File Selection -->
-            <div class="section-block">
-                <label class="theme-label block text-xs sm:text-sm font-medium mb-2 sm:mb-3 tracking-widest" id="file-label">SOURCE IMAGE</label>
+            <div class="mb-8">
+                <div class="section-label" id="file-label">SOURCE IMAGE</div>
+                
                 <div class="flex flex-col sm:flex-row gap-3">
                     <button type="button" onclick="selectFile()"
-                            id="file-button"
-                            class="theme-file-btn flex-1 min-w-0 border transition-all rounded-xl sm:rounded-2xl px-4 sm:px-6 py-3 sm:py-4 text-left flex items-center gap-x-3 group">
-                        <div class="w-8 h-8 sm:w-9 sm:h-9 shrink-0 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
-                            <i id="file-icon" class="fa-solid fa-file-image"></i>
+                            class="file-btn flex-1 min-w-0 border rounded-2xl px-5 py-4 text-left flex items-center gap-x-4 group">
+                        <div class="w-11 h-11 shrink-0 rounded-2xl flex items-center justify-center text-cyan-400 bg-cyan-400/10 group-hover:bg-cyan-400/15 transition-colors">
+                            <i id="file-icon" class="fa-solid fa-file-image text-2xl"></i>
                         </div>
-                        <div class="flex-1 min-w-0">
-                            <div id="selected-file-name" class="text-sm font-medium theme-title truncate">No file selected</div>
-                            <div id="selected-file-path" class="text-xs theme-muted truncate">Click to choose an image file</div>
+                        <div class="flex-1 min-w-0 overflow-hidden">
+                            <div id="selected-file-name" class="font-semibold text-[15px] truncate">No file selected</div>
+                            <div id="selected-file-path" class="text-xs text-[var(--text-faint)] truncate mt-0.5">Click to choose an image file</div>
                         </div>
                     </button>
-
+                    
                     <button type="button" onclick="selectFile()"
-                            class="theme-file-btn-secondary sm:px-8 px-4 py-3 sm:py-0 border rounded-xl sm:rounded-2xl flex items-center justify-center gap-2 transition-colors">
-                        <i class="fa-solid fa-folder-open text-lg sm:text-xl"></i>
-                        <span class="sm:hidden text-sm font-medium">Browse</span>
+                            class="file-btn border rounded-2xl px-6 flex items-center justify-center gap-2 text-[var(--text-muted)] hover:text-[var(--text-strong)] transition-colors">
+                        <i class="fa-solid fa-folder-open text-xl"></i>
+                        <span class="hidden sm:inline text-sm font-medium">Browse</span>
                     </button>
                 </div>
             </div>
 
-            <!-- Verification (flash only) -->
-            <div id="verify-section" class="section-block">
-                <label class="theme-label block text-xs sm:text-sm font-medium mb-2 sm:mb-3 tracking-widest">VERIFICATION</label>
-                <label class="theme-file-btn flex items-start gap-3 border rounded-xl sm:rounded-2xl px-4 sm:px-5 py-3 sm:py-4 cursor-pointer">
+            <!-- Verification -->
+            <div id="verify-section" class="mb-8">
+                <div class="section-label">VERIFICATION</div>
+                <label class="file-btn flex items-start gap-4 border rounded-2xl px-5 py-4 cursor-pointer">
                     <input type="checkbox"
                            id="verify-checkbox"
-                           class="mt-1 h-4 w-4 rounded border-gray-500 text-blue-500 focus:ring-blue-500"
+                           class="mt-1 h-4 w-4 accent-cyan-500"
                            onchange="verifyChecksum = this.checked">
-                    <span class="min-w-0">
-                        <span class="block text-sm font-medium theme-title">Verify checksum after write</span>
-                        <span class="block text-xs theme-muted mt-1">Reads the device back and compares SHA-256 checksums. Slower, but confirms the image was written correctly.</span>
-                    </span>
+                    <div class="min-w-0">
+                        <div class="font-semibold text-[15px]">Verify checksum after write</div>
+                        <div class="text-xs text-[var(--text-faint)] mt-1 leading-snug">
+                            Reads the device back and compares SHA-256 checksums. Slower but confirms the image was written correctly.
+                        </div>
+                    </div>
                 </label>
             </div>
 
-            <!-- Status -->
-            <div class="section-block theme-status-panel border rounded-xl sm:rounded-2xl p-4 sm:p-5 terminal">
-                <div class="flex justify-between items-center text-xs mb-2 theme-muted gap-2">
-                    <div>STATUS</div>
-                    <div id="status-text" class="text-emerald-400 font-medium shrink-0">Ready</div>
+            <!-- Status + Progress -->
+            <div class="mb-8">
+                <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
+                    
+                    <!-- Status -->
+                    <div class="lg:col-span-3 status-panel rounded-2xl p-5">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="section-label !mb-0">STATUS</div>
+                            <div id="status-text" 
+                                 class="font-semibold text-sm px-3 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500">Ready</div>
+                        </div>
+                        <div id="status-detail" class="terminal-text text-[13px] text-[var(--text-muted)] break-words">
+                            Waiting for operation...
+                        </div>
+                    </div>
+                    
+                    <!-- Progress -->
+                    <div class="lg:col-span-2 status-panel rounded-2xl p-5 flex flex-col">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="section-label !mb-0">PROGRESS</div>
+                            <div id="progress-text" class="font-mono text-sm font-medium tabular-nums">0%</div>
+                        </div>
+                        <div class="flex-1 flex items-center">
+                            <div class="progress-track w-full">
+                                <div id="progress-bar" class="progress-bar w-0"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
                 </div>
-                <div id="status-detail" class="theme-label text-sm break-words">Waiting for operation...</div>
             </div>
 
-            <!-- Progress -->
-            <div class="section-block">
-                <div class="flex justify-between text-xs theme-muted mb-2">
-                    <div>PROGRESS</div>
-                    <div id="progress-text" class="font-mono">0%</div>
-                </div>
-                <div class="theme-progress-track h-2 rounded-3xl overflow-hidden">
-                    <div id="progress-bar"
-                         class="progress-bar h-full bg-gradient-to-r from-blue-500 to-cyan-400 w-0 rounded-3xl"></div>
-                </div>
-            </div>
-
-            <!-- Controls -->
-            <div class="flex flex-col-reverse sm:flex-row gap-3 sm:gap-4">
+            <!-- Action Buttons -->
+            <div class="flex flex-col-reverse sm:flex-row gap-3">
                 <button type="button" onclick="startProcess()"
                         id="start-button"
-                        class="control-primary flex-1 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 transition-all text-white font-semibold py-4 sm:py-5 rounded-2xl sm:rounded-3xl text-base sm:text-lg flex items-center justify-center gap-x-3 shadow-lg shadow-blue-500/30 active:scale-[0.985]">
-                    <i class="fa-solid fa-play"></i>
-                    <span id="start-text">START FLASH</span>
+                        class="control-primary flex-1 py-4 sm:py-5 rounded-3xl text-lg flex items-center justify-center gap-x-3 active:scale-[0.985]">
+                    <i class="fa-solid fa-play mr-1"></i>
+                    <span id="start-text" class="font-semibold tracking-[-0.015em]">START FLASH</span>
                 </button>
 
                 <button type="button" onclick="cancelProcess()"
                         id="cancel-button"
-                        class="theme-cancel-btn hidden sm:px-8 px-4 py-4 sm:py-5 border text-red-400 hover:text-red-300 rounded-2xl sm:rounded-3xl font-medium transition-all">
+                        class="hidden sm:px-10 px-8 py-4 sm:py-5 border border-red-400/40 hover:bg-red-500/5 text-red-500 hover:text-red-400 rounded-3xl font-semibold transition-all">
                     CANCEL
                 </button>
             </div>
         </div>
 
-        <!-- Fixed-device confirmation (matches litho-tui NonRemovableConfirm) -->
-        <div id="fixed-device-modal"
-             class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
-             role="dialog"
-             aria-modal="true"
-             aria-labelledby="fixed-device-modal-title">
-            <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="confirmFixedDeviceSelection(false)"></div>
-            <div class="glass relative w-full max-w-md rounded-2xl sm:rounded-3xl border border-amber-500/30 p-5 sm:p-6 shadow-2xl">
-                <div class="flex items-start gap-3 mb-4">
-                    <div class="w-10 h-10 shrink-0 rounded-xl bg-amber-500/15 flex items-center justify-center text-amber-400">
-                        <i class="fa-solid fa-triangle-exclamation"></i>
+        <!-- Fixed Device Confirmation Dialog -->
+        <dialog id="fixed-device-modal"
+                class="glass rounded-3xl p-0 w-full max-w-md border border-amber-400/30 shadow-2xl backdrop:bg-black/60">
+            <div class="p-6">
+                <div class="flex gap-4">
+                    <div class="w-11 h-11 rounded-2xl bg-amber-400/10 flex-shrink-0 flex items-center justify-center text-amber-500">
+                        <i class="fa-solid fa-triangle-exclamation text-2xl"></i>
                     </div>
-                    <div class="min-w-0">
-                        <h2 id="fixed-device-modal-title" class="theme-title font-semibold text-base sm:text-lg">Confirm device selection</h2>
-                        <p class="theme-muted text-xs sm:text-sm mt-1">This device is not removable. Writing to it can destroy data.</p>
+                    <div class="flex-1 min-w-0">
+                        <h3 class="font-semibold text-lg">Confirm device selection</h3>
+                        <p class="text-sm text-[var(--text-muted)] mt-1">This device is not removable. Writing to it can destroy data.</p>
+                        
+                        <div id="fixed-device-modal-name"
+                             class="mt-4 text-sm font-medium bg-[var(--chip)] border border-[var(--border-subtle)] px-4 py-2.5 rounded-2xl break-all"></div>
                     </div>
-                </div>
-                <p id="fixed-device-modal-name" class="theme-chip px-3 py-2 rounded-xl text-sm font-medium break-all mb-5"></p>
-                <div class="flex flex-col-reverse sm:flex-row gap-3">
-                    <button type="button"
-                            onclick="confirmFixedDeviceSelection(false)"
-                            class="theme-file-btn-secondary flex-1 border rounded-xl sm:rounded-2xl px-4 py-3 text-sm font-medium transition-colors">
-                        Cancel
-                    </button>
-                    <button type="button"
-                            onclick="confirmFixedDeviceSelection(true)"
-                            class="flex-1 bg-amber-600 hover:bg-amber-500 transition-colors text-white font-semibold rounded-xl sm:rounded-2xl px-4 py-3 text-sm">
-                        Continue
-                    </button>
                 </div>
             </div>
-        </div>
+            
+            <div class="flex border-t border-[var(--border-subtle)]">
+                <button onclick="confirmFixedDeviceSelection(false)"
+                        class="flex-1 py-4 text-sm font-medium border-r border-[var(--border-subtle)] hover:bg-[var(--surface-hover)] rounded-bl-3xl transition-colors">
+                    Cancel
+                </button>
+                <button onclick="confirmFixedDeviceSelection(true)"
+                        class="flex-1 py-4 text-sm font-semibold text-amber-600 hover:bg-amber-500/5 rounded-br-3xl transition-colors">
+                    Continue anyway
+                </button>
+            </div>
+        </dialog>
 
         <!-- Footer -->
-        <div class="app-footer theme-footer text-center text-xs flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-5 pb-1">
-            <div>Made with ❤️ by <a href="https://github.com/girish946" target="_blank">Girish Joshi</a></div>
+        <div class="mt-8 text-center text-xs text-[var(--text-faint)]">
+            Made with <span class="text-red-500">♥</span> by 
+            <a href="https://github.com/girish946" target="_blank" class="hover:text-[var(--text-muted)] underline-offset-2 hover:underline">Girish Joshi</a>
         </div>
     </div>
 
     <script>
+        // ==================== ALL ORIGINAL LOGIC PRESERVED ====================
         let devices = [];
         let selectedMode = "flash";
         let selectedDevice = null;
@@ -437,7 +499,7 @@
             document.getElementById("selected-file-name").textContent = selectedFile.name;
             document.getElementById("selected-file-path").textContent = selectedFile.path;
             document.getElementById("status-detail").innerHTML =
-                `Selected: <span class="text-blue-400 break-all">${selectedFile.name}</span>`;
+                `Selected: <span class="text-cyan-400 break-all">${selectedFile.name}</span>`;
         }
 
         function updateFileSection() {
@@ -447,7 +509,7 @@
             const icon = document.getElementById("file-icon");
 
             label.textContent = isClone ? "OUTPUT IMAGE" : "SOURCE IMAGE";
-            icon.className = isClone ? "fa-solid fa-floppy-disk" : "fa-solid fa-file-image";
+            icon.className = isClone ? "fa-solid fa-floppy-disk text-2xl" : "fa-solid fa-file-image text-2xl";
 
             if (!selectedFile) {
                 placeholder.textContent = isClone
@@ -462,14 +524,17 @@
 
             modes.forEach(mode => {
                 const div = document.createElement("div");
-                div.className = `mode-option p-4 sm:p-6 rounded-2xl sm:rounded-3xl border cursor-pointer flex flex-col items-center text-center card ${mode.id === selectedMode ? "active" : ""}`;
+                div.className = `mode-card p-5 sm:p-6 rounded-3xl border cursor-pointer flex flex-col items-center text-center ${mode.id === selectedMode ? "active" : ""}`;
+                
                 div.innerHTML = `
-                    <div class="mode-icon-wrap w-10 h-10 sm:w-12 sm:h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center mb-3 sm:mb-4 text-2xl sm:text-3xl text-blue-400">
+                    <div class="mode-icon-wrap w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center mb-4 text-3xl transition-colors
+                                ${mode.id === selectedMode ? 'mode-icon' : 'bg-cyan-400/10 text-cyan-400'}">
                         <i class="${mode.icon}"></i>
                     </div>
-                    <div class="mode-label font-semibold text-base sm:text-lg">${mode.label}</div>
-                    <div class="mode-desc theme-muted text-xs sm:text-sm mt-1">${mode.desc}</div>
+                    <div class="font-semibold text-lg">${mode.label}</div>
+                    <div class="text-xs mt-1 text-[var(--text-faint)]">${mode.desc}</div>
                 `;
+                
                 div.onclick = () => {
                     if (selectedMode === mode.id) return;
                     selectedMode = mode.id;
@@ -487,9 +552,7 @@
 
         function sortDevicesRemovableFirst(list) {
             return [...list].sort((a, b) => {
-                if (a.removable !== b.removable) {
-                    return a.removable ? -1 : 1;
-                }
+                if (a.removable !== b.removable) return a.removable ? -1 : 1;
                 return a.path.localeCompare(b.path);
             });
         }
@@ -514,19 +577,17 @@
                 return;
             }
 
+            const removableHTML = selectedDevice.removable 
+                ? `<span class="pill text-emerald-500 border-emerald-400/30">● Removable</span>`
+                : `<span class="pill text-amber-500 border-amber-400/30">● Fixed</span>`;
+
             infoEl.innerHTML = `
-                <span class="theme-chip px-2.5 py-1 rounded-lg break-all">${selectedDevice.path}</span>
-                <span>${selectedDevice.size}</span>
-                ${selectedDevice.removable
-                    ? `<span class="text-emerald-400">● Removable</span>`
-                    : `<span class="text-amber-400">● Fixed</span>`}
+                <span class="pill font-mono text-xs px-3 py-1">${selectedDevice.path}</span>
+                <span class="pill">${selectedDevice.size}</span>
+                ${removableHTML}
             `;
 
-            if (selectedDevice.removable) {
-                warningEl.classList.add("hidden");
-            } else {
-                warningEl.classList.remove("hidden");
-            }
+            warningEl.classList.toggle("hidden", selectedDevice.removable);
         }
 
         function applyDeviceSelection(index, selectEl) {
@@ -544,13 +605,14 @@
 
         function showFixedDeviceConfirm(device, index, selectEl, previousIndex) {
             pendingFixedDevice = { index, selectEl, previousIndex };
-            document.getElementById("fixed-device-modal-name").textContent =
+            document.getElementById("fixed-device-modal-name").textContent = 
                 `${device.name} • ${device.path}`;
-            document.getElementById("fixed-device-modal").classList.remove("hidden");
+            document.getElementById("fixed-device-modal").showModal();
         }
 
         function hideFixedDeviceConfirm() {
-            document.getElementById("fixed-device-modal").classList.add("hidden");
+            const modal = document.getElementById("fixed-device-modal");
+            modal.close();
             pendingFixedDevice = null;
         }
 
@@ -559,12 +621,13 @@
             hideFixedDeviceConfirm();
             if (!pending) return;
 
+            const select = pending.selectEl;
             if (accept) {
-                applyDeviceSelection(pending.index, pending.selectEl);
+                applyDeviceSelection(pending.index, select);
             } else if (pending.previousIndex >= 0) {
-                applyDeviceSelection(pending.previousIndex, pending.selectEl);
+                applyDeviceSelection(pending.previousIndex, select);
             } else {
-                applyDeviceSelection(-1, pending.selectEl);
+                applyDeviceSelection(-1, select);
             }
         }
 
@@ -596,9 +659,7 @@
             }
 
             if (!device.removable && !skipConfirm) {
-                const previousIndex = selectedDevice
-                    ? deviceIndexByPath(selectedDevice.path)
-                    : -1;
+                const previousIndex = selectedDevice ? deviceIndexByPath(selectedDevice.path) : -1;
                 if (previousIndex >= 0) {
                     selectEl.value = String(previousIndex);
                 } else {
@@ -635,7 +696,7 @@
             const section = document.getElementById("verify-section");
             const checkbox = document.getElementById("verify-checkbox");
             const show = selectedMode === "flash";
-            section.classList.toggle("hidden", !show);
+            section.style.display = show ? "" : "none";
             checkbox.disabled = isRunning || !show;
             if (!show) {
                 verifyChecksum = false;
@@ -649,10 +710,10 @@
             const icon = document.getElementById("privilege-icon");
 
             const styles = {
-                root: "privilege-badge flex items-center gap-x-1.5 px-2.5 sm:px-3 py-1.5 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20",
-                polkit: "privilege-badge flex items-center gap-x-1.5 px-2.5 sm:px-3 py-1.5 bg-sky-500/10 text-sky-400 rounded-full border border-sky-500/20",
-                unprivileged: "privilege-badge flex items-center gap-x-1.5 px-2.5 sm:px-3 py-1.5 bg-amber-500/10 text-amber-400 rounded-full border border-amber-500/20",
-                unknown: "privilege-badge privilege-badge--unknown flex items-center gap-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-full border",
+                root: "flex items-center gap-x-2 px-3.5 py-1.5 bg-emerald-500/10 text-emerald-400 border-emerald-400/30 rounded-2xl",
+                polkit: "flex items-center gap-x-2 px-3.5 py-1.5 bg-sky-500/10 text-sky-400 border-sky-400/30 rounded-2xl",
+                unprivileged: "flex items-center gap-x-2 px-3.5 py-1.5 bg-amber-500/10 text-amber-400 border-amber-400/30 rounded-2xl",
+                unknown: "flex items-center gap-x-2 px-3.5 py-1.5 bg-[var(--badge-unknown-bg)] text-[var(--badge-unknown-text)] border-[var(--badge-unknown-border)] rounded-2xl",
             };
 
             const icons = {
@@ -673,31 +734,15 @@
                 const diag = await tauriInvoke("get_startup_diagnostics");
 
                 if (diag.is_root) {
-                    applyPrivilegeBadge(
-                        "root",
-                        "Privileged",
-                        "Running as root. Flash and clone can run without a password prompt."
-                    );
+                    applyPrivilegeBadge("root", "Privileged", "Running as root. No password prompt needed.");
                 } else if (diag.polkit_agent_is_executable) {
-                    applyPrivilegeBadge(
-                        "polkit",
-                        "Polkit ready",
-                        "Not root. Starting an operation will prompt for your administrator password."
-                    );
+                    applyPrivilegeBadge("polkit", "Non root user", "Will prompt for administrator password.");
                 } else {
-                    applyPrivilegeBadge(
-                        "unprivileged",
-                        "Unprivileged",
-                        "Not running as root and no polkit agent was detected. Use sudo or install a desktop polkit agent."
-                    );
+                    applyPrivilegeBadge("unprivileged", "Unprivileged", "No polkit agent detected. Use sudo.");
                 }
             } catch (err) {
                 console.warn("Failed to load privilege status:", err);
-                applyPrivilegeBadge(
-                    "unknown",
-                    "Unknown",
-                    "Could not determine privilege status."
-                );
+                applyPrivilegeBadge("unknown", "Unknown", "Could not determine privilege status.");
             }
         }
 
@@ -719,8 +764,7 @@
                     const idx = deviceIndexByPath(previouslySelectedPath);
                     if (idx !== -1) {
                         const device = devices[idx];
-                        const skipConfirm = device.removable
-                            || (selectedDevice && selectedDevice.path === device.path);
+                        const skipConfirm = device.removable || (selectedDevice && selectedDevice.path === device.path);
                         select.value = idx;
                         selectDevice(select, { skipConfirm });
                     } else {
@@ -737,8 +781,6 @@
                         selectDevice(select, { skipConfirm: true });
                     }
                 }
-
-                console.log(`[lithographer] Loaded ${devices.length} storage device(s) from backend`);
             } catch (err) {
                 console.error("Failed to load storage devices:", err);
                 devices = [];
@@ -750,7 +792,7 @@
         function setOperationStatus(title, titleClass, detailHtml) {
             const statusEl = document.getElementById("status-text");
             statusEl.textContent = title;
-            statusEl.className = titleClass;
+            statusEl.className = `font-semibold text-sm px-3 py-0.5 rounded-full ${titleClass}`;
             document.getElementById("status-detail").innerHTML = detailHtml;
         }
 
@@ -781,7 +823,7 @@
                     const msg = payload.message || phaseLabel(payload.phase);
                     setOperationStatus(
                         "IN PROGRESS",
-                        "text-amber-400 font-medium",
+                        "bg-amber-500/10 text-amber-500",
                         `<span class="font-medium">${phaseLabel(payload.phase)}</span> — ${msg}`
                     );
                     break;
@@ -789,24 +831,13 @@
                 case "progress": {
                     const label = phaseLabel(payload.phase);
                     const pct = typeof payload.pct === "number" ? payload.pct : null;
-                    if (pct !== null) {
-                        setProgressPercent(pct);
-                    }
-                    const detail = payload.message
-                        || (pct !== null ? `${label} ${pct.toFixed(1)}%` : label);
-                    setOperationStatus(
-                        "IN PROGRESS",
-                        "text-amber-400 font-medium",
-                        detail
-                    );
+                    if (pct !== null) setProgressPercent(pct);
+                    const detail = payload.message || (pct !== null ? `${label} ${pct.toFixed(1)}%` : label);
+                    setOperationStatus("IN PROGRESS", "bg-amber-500/10 text-amber-500", detail);
                     break;
                 }
                 case "error":
-                    setOperationStatus(
-                        "ERROR",
-                        "text-red-400 font-medium",
-                        payload.message || "Operation failed."
-                    );
+                    setOperationStatus("ERROR", "bg-red-500/10 text-red-500", payload.message || "Operation failed.");
                     break;
                 case "done":
                     if (payload.success) {
@@ -842,7 +873,7 @@
 
             isRunning = true;
             updateVerifySection();
-            document.getElementById("start-button").classList.add("opacity-50", "cursor-not-allowed");
+            document.getElementById("start-button").classList.add("opacity-60", "cursor-not-allowed");
             document.getElementById("cancel-button").classList.remove("hidden");
             setProgressPercent(0);
 
@@ -850,7 +881,7 @@
             const target = selectedMode === "flash" ? selectedDevice.name : selectedFile.name;
             setOperationStatus(
                 "STARTING",
-                "text-amber-400 font-medium",
+                "bg-amber-500/10 text-amber-500",
                 `${action} <span class="font-medium">${target}</span>…`
             );
 
@@ -859,14 +890,9 @@
                     mode: selectedMode,
                     device: selectedDevice.path,
                     image: selectedFile.path,
-                    verify: selectedMode === "flash"
-                        && document.getElementById("verify-checkbox").checked,
+                    verify: selectedMode === "flash" && document.getElementById("verify-checkbox").checked,
                 });
-                setOperationStatus(
-                    "IN PROGRESS",
-                    "text-amber-400 font-medium",
-                    "Waiting for litho sidecar…"
-                );
+                setOperationStatus("IN PROGRESS", "bg-amber-500/10 text-amber-500", "Waiting for litho sidecar…");
             } catch (err) {
                 console.error("Failed to start litho operation:", err);
                 const message = err && err.message ? err.message : String(err);
@@ -878,25 +904,21 @@
             if (!isRunning) return;
             isRunning = false;
             updateVerifySection();
-            document.getElementById("start-button").classList.remove("opacity-50", "cursor-not-allowed");
+            document.getElementById("start-button").classList.remove("opacity-60", "cursor-not-allowed");
             document.getElementById("cancel-button").classList.add("hidden");
-            setOperationStatus(
-                "ERROR",
-                "text-red-400 font-medium",
-                message
-            );
+            setOperationStatus("ERROR", "bg-red-500/10 text-red-500", message);
         }
 
         function finishProcess() {
             if (!isRunning) return;
             isRunning = false;
             updateVerifySection();
-            document.getElementById("start-button").classList.remove("opacity-50", "cursor-not-allowed");
+            document.getElementById("start-button").classList.remove("opacity-60", "cursor-not-allowed");
             document.getElementById("cancel-button").classList.add("hidden");
 
             const statusEl = document.getElementById("status-text");
             statusEl.textContent = "COMPLETE";
-            statusEl.className = "text-emerald-400 font-medium";
+            statusEl.className = "font-semibold text-sm px-3 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500";
 
             const verb = selectedMode === "flash" ? "flashed" : "cloned";
             const target = selectedMode === "flash" ? selectedDevice.name : selectedFile.name;
@@ -918,47 +940,42 @@
             isRunning = false;
             updateVerifySection();
             setProgressPercent(0);
-            document.getElementById("start-button").classList.remove("opacity-50", "cursor-not-allowed");
+            document.getElementById("start-button").classList.remove("opacity-60", "cursor-not-allowed");
             document.getElementById("cancel-button").classList.add("hidden");
-            setOperationStatus(
-                "CANCELLED",
-                "text-orange-400 font-medium",
-                "Operation cancelled by user."
-            );
+            setOperationStatus("CANCELLED", "bg-orange-500/10 text-orange-500", "Operation cancelled by user.");
         }
 
         function confettiBurst() {
-            for (let i = 0; i < 60; i++) {
+            const colors = ['#22d3ee', '#06b6d4', '#67e8f9', '#a5f3fc'];
+            for (let i = 0; i < 70; i++) {
                 setTimeout(() => {
                     const confetti = document.createElement("div");
                     confetti.style.position = "fixed";
                     confetti.style.left = Math.random() * 100 + "vw";
-                    confetti.style.top = "-10px";
-                    confetti.style.width = "8px";
-                    confetti.style.height = "8px";
-                    confetti.style.borderRadius = "2px";
-                    confetti.style.backgroundColor = `hsl(${Math.random() * 360}, 90%, 65%)`;
-                    confetti.style.zIndex = "9999";
+                    confetti.style.top = "-12px";
+                    confetti.style.width = "7px";
+                    confetti.style.height = "7px";
+                    confetti.style.borderRadius = Math.random() > 0.5 ? "50%" : "2px";
+                    confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                    confetti.style.zIndex = "99999";
                     confetti.style.opacity = "0.9";
                     document.body.appendChild(confetti);
 
                     let y = 0;
                     const fall = setInterval(() => {
-                        y += 12 + Math.random() * 8;
-                        confetti.style.transform = `translateY(${y}px) rotate(${y * 4}deg)`;
-                        if (y > window.innerHeight) {
+                        y += 11 + Math.random() * 9;
+                        confetti.style.transform = `translateY(${y}px) rotate(${y * 5}deg)`;
+                        if (y > window.innerHeight + 30) {
                             clearInterval(fall);
                             confetti.remove();
                         }
                     }, 16);
-                }, i * 4);
+                }, i * 3.5);
             }
         }
 
         function getSystemTheme() {
-            return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
-                ? "dark"
-                : "light";
+            return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
         }
 
         function getActiveTheme() {
@@ -968,7 +985,6 @@
         function updateAppLogo(theme) {
             const logoEl = document.getElementById("app-logo");
             if (!logoEl) return;
-
             const logoSrc = theme === "dark" ? "assets/dark-logo.jpg" : "assets/light-logo.jpg";
             if (!logoEl.src.endsWith(logoSrc)) {
                 logoEl.src = logoSrc;
@@ -977,36 +993,26 @@
 
         function updateThemeToggleIcon(theme) {
             const icon = document.getElementById("theme-icon");
-            const btn = icon && icon.parentElement;
             if (!icon) return;
-
             if (theme === "dark") {
                 icon.className = "fa-solid fa-sun text-amber-300";
-                if (btn) btn.title = "Switch to light theme";
+                icon.parentElement.title = "Switch to light theme";
             } else {
-                icon.className = "fa-solid fa-moon text-slate-600";
-                if (btn) btn.title = "Switch to dark theme";
+                icon.className = "fa-solid fa-moon text-slate-500";
+                icon.parentElement.title = "Switch to dark theme";
             }
         }
 
         function applyTheme(theme) {
             document.documentElement.setAttribute("data-theme", theme);
-            try {
-                localStorage.setItem(THEME_STORAGE_KEY, theme);
-            } catch (_) {
-                /* ignore private browsing */
-            }
+            try { localStorage.setItem(THEME_STORAGE_KEY, theme); } catch (_) {}
             updateAppLogo(theme);
             updateThemeToggleIcon(theme);
         }
 
         function initTheme() {
             let theme = null;
-            try {
-                theme = localStorage.getItem(THEME_STORAGE_KEY);
-            } catch (_) {
-                theme = null;
-            }
+            try { theme = localStorage.getItem(THEME_STORAGE_KEY); } catch (_) {}
             applyTheme(theme === "light" || theme === "dark" ? theme : getSystemTheme());
         }
 
@@ -1020,8 +1026,6 @@
                 const hasAny = params.mode || params.device || params.image;
                 if (!hasAny) return;
 
-                console.log("%c[launch] Applying CLI params:", "color:#60a5fa", params);
-
                 if (params.mode) {
                     const wanted = String(params.mode).toLowerCase();
                     selectedMode = wanted === "clone" ? "clone" : "flash";
@@ -1033,7 +1037,6 @@
 
                 if (params.device) {
                     let idx = deviceIndexByPath(params.device);
-
                     if (idx === -1) {
                         devices = sortDevicesRemovableFirst(devices.concat([{
                             name: basename(params.device),
@@ -1045,7 +1048,6 @@
                         populateDevices();
                         idx = deviceIndexByPath(params.device);
                     }
-
                     const select = document.getElementById("diskSelect");
                     select.value = idx;
                     selectDevice(select);
@@ -1060,7 +1062,8 @@
         }
 
         function handleKeyboard(e) {
-            const modalOpen = pendingFixedDevice !== null;
+            const modal = document.getElementById("fixed-device-modal");
+            const modalOpen = modal && modal.open;
 
             if (modalOpen) {
                 if (e.key === "Escape") {
@@ -1073,7 +1076,7 @@
                 return;
             }
 
-            if (e.key === "/" && document.activeElement.tagName !== "INPUT" && document.activeElement.tagName !== "TEXTAREA") {
+            if (e.key === "/" && !["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) {
                 e.preventDefault();
                 document.getElementById("diskSelect").focus();
             }
@@ -1088,7 +1091,7 @@
 
             document.addEventListener("keydown", handleKeyboard);
 
-            console.log("%cLithographer UI ✅", "color:#60a5fa; font-family:monospace; font-size:13px");
+            console.log("%c[Lithographer] Polished Oat-ready UI loaded", "color:#22d3ee; font-family:monospace");
 
             loadPrivilegeStatus();
             await loadStorageDevices();

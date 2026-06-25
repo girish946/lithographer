@@ -7,7 +7,8 @@
     "tauri": "tauri",
     "tauri:dev": "bash src-tauri/scripts/prepare-litho-sidecar.sh && tauri dev",
     "tauri:build": "bash src-tauri/scripts/prepare-litho-sidecar.sh && tauri build && bash src-tauri/scripts/patch-appimage-wayland.sh",
-    "prepare-sidecar": "bash src-tauri/scripts/prepare-litho-sidecar.sh"
+    "prepare-sidecar": "bash src-tauri/scripts/prepare-litho-sidecar.sh",
+    "vendor-assets": "bash scripts/vendor-frontend-assets.sh"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2"

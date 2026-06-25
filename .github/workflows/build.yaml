@@ -41,6 +41,9 @@ jobs:
       - name: install frontend dependencies
         run: npm install
 
+      - name: vendor frontend assets
+        run: npm run vendor-assets
+
       # Omit tagName and releaseId to build only (no GitHub release upload).
       - uses: tauri-apps/tauri-action@v0
         env:
