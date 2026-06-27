@@ -1,22 +1,34 @@
 use crate::litho_output::{parse_litho_line, LithoUiEvent};
 use crate::litho_sidecar::resolve_litho_binary;
-use liblitho::devices::validate_device_safe_for_io;
 use crate::is_running_as_root;
-use std::io::{BufRead, BufReader};
-use std::process::{Child, Command, Stdio};
+use liblitho::cancel::{create_cancel_file, remove_cancel_file, request_cancel_via_file};
+use liblitho::devices::validate_device_safe_for_io;
+use liblitho::progress::STDIN_CANCEL_LINE;
+use std::io::{BufRead, BufReader, Write};
+use std::path::PathBuf;
+use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter};
 
+/// Matches `cli_cancel::CANCEL_EXIT_CODE` in the litho CLI.
+const LITHO_CANCEL_EXIT_CODE: i32 = 3;
+
 pub struct LithoRunnerState {
     pub child: Option<Child>,
+    pub child_stdin: Option<ChildStdin>,
+    pub cancel_file: Option<PathBuf>,
     pub running: bool,
+    pub cancel_requested: bool,
 }
 
 impl Default for LithoRunnerState {
     fn default() -> Self {
         Self {
             child: None,
+            child_stdin: None,
+            cancel_file: None,
             running: false,
+            cancel_requested: false,
         }
     }
 }
@@ -38,11 +50,15 @@ pub fn spawn_litho_operation(
     request: LithoRunRequest,
 ) -> Result<(), String> {
     {
-        let guard = state.lock().map_err(|e| e.to_string())?;
+        let mut guard = state.lock().map_err(|e| e.to_string())?;
         if guard.running {
             return Err("An operation is already in progress.".to_string());
         }
+        guard.cancel_requested = false;
     }
+
+    let cancel_file = create_cancel_file()
+        .map_err(|e| format!("Failed to create cancel flag file: {e}"))?;
 
     let litho_path = resolve_litho_binary(&app)?;
     validate_device_safe_for_io(&request.device)?;
@@ -64,6 +80,8 @@ pub fn spawn_litho_operation(
         device.clone(),
         "-b".to_string(),
         request.block_size.to_string(),
+        "--cancel-file".to_string(),
+        cancel_file.display().to_string(),
     ];
 
     if subcommand == "flash" && request.verify {
@@ -83,11 +101,12 @@ pub fn spawn_litho_operation(
 
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
-    cmd.stdin(Stdio::null());
+    cmd.stdin(Stdio::piped());
 
     println!(
-        "Spawning litho sidecar (verify={}): {} {:?}",
+        "Spawning litho sidecar (verify={}, cancel_file={}): {} {:?}",
         request.verify,
+        cancel_file.display(),
         if is_running_as_root() {
             litho_path.display().to_string()
         } else {
@@ -108,11 +127,17 @@ pub fn spawn_litho_operation(
         .stderr
         .take()
         .ok_or_else(|| "Failed to capture litho stderr".to_string())?;
+    let stdin = child
+        .stdin
+        .take()
+        .ok_or_else(|| "Failed to open litho stdin".to_string())?;
 
     {
         let mut guard = state.lock().map_err(|e| e.to_string())?;
         guard.running = true;
         guard.child = Some(child);
+        guard.child_stdin = Some(stdin);
+        guard.cancel_file = Some(cancel_file);
     }
 
     let app_stdout = app.clone();
@@ -134,67 +159,132 @@ pub fn spawn_litho_operation(
     let app_wait = app.clone();
     let state_wait = Arc::clone(&state);
     std::thread::spawn(move || {
-        let exit_code = {
+        let mut child = {
             let mut guard = match state_wait.lock() {
                 Ok(g) => g,
                 Err(_) => return,
             };
-            let mut code = None;
-            if let Some(child) = guard.child.as_mut() {
-                code = child.wait().ok().and_then(|s| s.code());
-            }
-            guard.child = None;
-            guard.running = false;
-            code
+            guard.child_stdin.take();
+            guard.child.take()
         };
 
-        match exit_code {
-            Some(0) => {
-                let _ = app_wait.emit("litho-event", LithoUiEvent::Done { success: true });
-            }
-            Some(126) => {
-                let _ = app_wait.emit(
-                    "litho-event",
-                    LithoUiEvent::Error {
-                        message: "Authentication was cancelled or denied.".to_string(),
-                    },
-                );
-                let _ = app_wait.emit("litho-event", LithoUiEvent::Done { success: false });
-            }
-            Some(code) => {
-                let _ = app_wait.emit(
-                    "litho-event",
-                    LithoUiEvent::Error {
-                        message: format!("litho exited with code {code}"),
-                    },
-                );
-                let _ = app_wait.emit("litho-event", LithoUiEvent::Done { success: false });
-            }
-            None => {
-                let _ = app_wait.emit(
-                    "litho-event",
-                    LithoUiEvent::Error {
-                        message: "litho process ended without an exit code.".to_string(),
-                    },
-                );
-                let _ = app_wait.emit("litho-event", LithoUiEvent::Done { success: false });
-            }
+        let exit_code = child
+            .as_mut()
+            .and_then(|child| child.wait().ok().and_then(|status| status.code()));
+
+        let (cancel_requested, cancel_file) = {
+            let mut guard = match state_wait.lock() {
+                Ok(g) => g,
+                Err(_) => return,
+            };
+            let cancel_requested = guard.cancel_requested;
+            let cancel_file = guard.cancel_file.take();
+            guard.running = false;
+            guard.cancel_requested = false;
+            guard.child_stdin = None;
+            (cancel_requested, cancel_file)
+        };
+
+        if let Some(path) = cancel_file {
+            remove_cancel_file(&path);
         }
+
+        emit_completion_event(&app_wait, exit_code, cancel_requested);
     });
 
     Ok(())
 }
 
 pub fn cancel_litho_operation(state: &SharedLithoRunner) -> Result<(), String> {
+    let cancel_file = {
+        let mut guard = state.lock().map_err(|e| e.to_string())?;
+        if !guard.running {
+            return Ok(());
+        }
+        guard.cancel_requested = true;
+        guard.cancel_file.clone()
+    };
+
+    let path = cancel_file.ok_or_else(|| "Cancel flag file is not available.".to_string())?;
+    request_cancel_via_file(&path)
+        .map_err(|e| format!("Failed to write cancel flag file: {e}"))?;
+
+    // Stdin is a best-effort fallback when pkexec forwards it (usually it does not).
     let mut guard = state.lock().map_err(|e| e.to_string())?;
-    if let Some(child) = guard.child.as_mut() {
-        child
-            .kill()
-            .map_err(|e| format!("Failed to cancel litho process: {e}"))?;
+    if let Some(stdin) = guard.child_stdin.as_mut() {
+        let _ = writeln!(stdin, "{STDIN_CANCEL_LINE}");
+        let _ = stdin.flush();
     }
-    guard.child = None;
-    guard.running = false;
+
     Ok(())
+}
+
+fn emit_completion_event(app: &AppHandle, exit_code: Option<i32>, cancel_requested: bool) {
+    match exit_code {
+        Some(0) => {
+            let _ = app.emit(
+                "litho-event",
+                LithoUiEvent::Done {
+                    success: true,
+                    cancelled: false,
+                },
+            );
+        }
+        Some(LITHO_CANCEL_EXIT_CODE) | _ if cancel_requested => {
+            let _ = app.emit(
+                "litho-event",
+                LithoUiEvent::Done {
+                    success: false,
+                    cancelled: true,
+                },
+            );
+        }
+        Some(126) => {
+            let _ = app.emit(
+                "litho-event",
+                LithoUiEvent::Error {
+                    message: "Authentication was cancelled or denied.".to_string(),
+                },
+            );
+            let _ = app.emit(
+                "litho-event",
+                LithoUiEvent::Done {
+                    success: false,
+                    cancelled: false,
+                },
+            );
+        }
+        Some(code) => {
+            let _ = app.emit(
+                "litho-event",
+                LithoUiEvent::Error {
+                    message: format!("litho exited with code {code}"),
+                },
+            );
+            let _ = app.emit(
+                "litho-event",
+                LithoUiEvent::Done {
+                    success: false,
+                    cancelled: false,
+                },
+            );
+        }
+        None => {
+            let _ = app.emit(
+                "litho-event",
+                LithoUiEvent::Error {
+                    message: "litho process ended without an exit code.".to_string(),
+                },
+            );
+            let _ = app.emit(
+                "litho-event",
+                LithoUiEvent::Done {
+                    success: false,
+                    cancelled: false,
+                },
+            );
+        }
+    }
 }
 
 fn emit_parsed_line(app: &AppHandle, stream: &str, line: &str) {

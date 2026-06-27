@@ -457,6 +457,7 @@
         let selectedFile = null;
         let verifyChecksum = false;
         let isRunning = false;
+        let cancelPending = false;
         let lithoEventUnlisten = null;
         let pendingFixedDevice = null;
         const THEME_STORAGE_KEY = "lithographer-theme";
@@ -810,6 +811,7 @@
                 verifying: "Verifying",
                 complete: "Complete",
                 failed: "Failed",
+                cancelled: "Cancelled",
             };
             return labels[phase] || (phase || "Working");
         }
@@ -817,6 +819,10 @@
         function handleLithoEvent(event) {
             const payload = event.payload;
             if (!payload || !payload.type) return;
+
+            if (cancelPending && payload.type !== "done" && payload.phase !== "cancelled") {
+                return;
+            }
 
             switch (payload.type) {
                 case "status": {
@@ -829,6 +835,12 @@
                     break;
                 }
                 case "progress": {
+                    if (payload.phase === "cancelled") {
+                        finishCancelledProcess(
+                            payload.message || "Operation cancelled by user."
+                        );
+                        break;
+                    }
                     const label = phaseLabel(payload.phase);
                     const pct = typeof payload.pct === "number" ? payload.pct : null;
                     if (pct !== null) setProgressPercent(pct);
@@ -842,6 +854,8 @@
                 case "done":
                     if (payload.success) {
                         finishProcess();
+                    } else if (payload.cancelled) {
+                        finishCancelledProcess("Operation cancelled by user.");
                     } else {
                         failProcess(payload.message || "Operation failed.");
                     }
@@ -900,9 +914,20 @@
             }
         }
 
+        function finishCancelledProcess(message) {
+            if (!isRunning && !cancelPending) return;
+            isRunning = false;
+            cancelPending = false;
+            updateVerifySection();
+            document.getElementById("start-button").classList.remove("opacity-60", "cursor-not-allowed");
+            document.getElementById("cancel-button").classList.add("hidden");
+            setOperationStatus("CANCELLED", "bg-orange-500/10 text-orange-500", message);
+        }
+
         function failProcess(message) {
             if (!isRunning) return;
             isRunning = false;
+            cancelPending = false;
             updateVerifySection();
             document.getElementById("start-button").classList.remove("opacity-60", "cursor-not-allowed");
             document.getElementById("cancel-button").classList.add("hidden");
@@ -912,6 +937,7 @@
         function finishProcess() {
             if (!isRunning) return;
             isRunning = false;
+            cancelPending = false;
             updateVerifySection();
             document.getElementById("start-button").classList.remove("opacity-60", "cursor-not-allowed");
             document.getElementById("cancel-button").classList.add("hidden");
@@ -929,20 +955,22 @@
         }
 
         async function cancelProcess() {
-            if (!isRunning) return;
+            if (!isRunning || cancelPending) return;
 
-            try {
-                await tauriInvoke("cancel_litho_operation");
-            } catch (err) {
+            cancelPending = true;
+            setOperationStatus(
+                "IN PROGRESS",
+                "bg-amber-500/10 text-amber-500",
+                "Cancelling — waiting for I/O to stop..."
+            );
+
+            tauriInvoke("cancel_litho_operation").catch((err) => {
                 console.warn("Cancel request failed:", err);
-            }
-
-            isRunning = false;
-            updateVerifySection();
-            setProgressPercent(0);
-            document.getElementById("start-button").classList.remove("opacity-60", "cursor-not-allowed");
-            document.getElementById("cancel-button").classList.add("hidden");
-            setOperationStatus("CANCELLED", "bg-orange-500/10 text-orange-500", "Operation cancelled by user.");
+                if (cancelPending) {
+                    cancelPending = false;
+                    failProcess("Failed to cancel operation.");
+                }
+            });
         }
 
         function confettiBurst() {

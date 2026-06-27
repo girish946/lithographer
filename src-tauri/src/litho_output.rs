@@ -20,6 +20,7 @@ pub enum LithoUiEvent {
     },
     Done {
         success: bool,
+        cancelled: bool,
     },
     Raw {
         stream: String,
@@ -65,12 +66,23 @@ pub fn parse_litho_line(stream: &str, line: &str) -> LithoUiEvent {
     }
 
     if trimmed == "@done ok" {
-        return LithoUiEvent::Done { success: true };
+        return LithoUiEvent::Done {
+            success: true,
+            cancelled: false,
+        };
+    }
+
+    if trimmed == "@done cancelled" {
+        return LithoUiEvent::Done {
+            success: false,
+            cancelled: true,
+        };
     }
 
     if let Some(rest) = trimmed.strip_prefix("@done ") {
         return LithoUiEvent::Done {
             success: rest.eq_ignore_ascii_case("ok"),
+            cancelled: false,
         };
     }
 
@@ -171,7 +183,37 @@ mod tests {
     fn parse_done_ok() {
         let event = parse_litho_line("stdout", "@done ok");
         match event {
-            LithoUiEvent::Done { success } => assert!(success),
+            LithoUiEvent::Done { success, cancelled } => {
+                assert!(success);
+                assert!(!cancelled);
+            }
+            other => panic!("unexpected event: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_done_cancelled() {
+        let event = parse_litho_line("stdout", "@done cancelled");
+        match event {
+            LithoUiEvent::Done { success, cancelled } => {
+                assert!(!success);
+                assert!(cancelled);
+            }
+            other => panic!("unexpected event: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_progress_cancelled_phase() {
+        let event = parse_litho_line(
+            "stdout",
+            r#"@progress phase=cancelled msg="Clone cancelled""#,
+        );
+        match event {
+            LithoUiEvent::Progress { phase, message, .. } => {
+                assert_eq!(phase.as_deref(), Some("cancelled"));
+                assert_eq!(message.as_deref(), Some("Clone cancelled"));
+            }
             other => panic!("unexpected event: {other:?}"),
         }
     }
