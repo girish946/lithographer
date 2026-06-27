@@ -737,7 +737,7 @@
                 if (diag.is_root) {
                     applyPrivilegeBadge("root", "Privileged", "Running as root. No password prompt needed.");
                 } else if (diag.polkit_agent_is_executable) {
-                    applyPrivilegeBadge("polkit", "Non root user", "Will prompt for administrator password.");
+                    applyPrivilegeBadge("polkit", "Polkit available", "Will prompt for administrator password.");
                 } else {
                     applyPrivilegeBadge("unprivileged", "Unprivileged", "No polkit agent detected. Use sudo.");
                 }
