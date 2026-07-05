@@ -32,9 +32,8 @@ rfd = "0.15"
 # We are NOT bundling the separate `litho` binary for now.
 liblitho = { path = "../../litho" }
 
-# Pin webkit2gtk + enable a feature that exists in the 0.18 series.
-# We use `v2_38` because it is the highest feature available in webkit2gtk 0.18.x
-# and is compatible with the WebKitGTK 4.0 / javascriptcoregtk-4.0 packages
-# installed in the Dockerfile (Ubuntu 22.04).
-# This stops Cargo from selecting a resolution that demands the 4.1 .pc files.
+[target.'cfg(target_os = "linux")'.dependencies]
+# Pin webkit2gtk for Linux Tauri builds (WebKitGTK). Windows uses WebView2 via Tauri.
+# Compatible with WebKitGTK 4.0 / javascriptcoregtk-4.0 on Ubuntu 22.04 Docker images.
+# Stops Cargo from selecting a resolution that demands the 4.1 .pc files.
 webkit2gtk = "2.0.2"
