@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lithographer • SD Card Writer</title>
+    <link rel="icon" type="image/jpeg" href="assets/dark-logo.jpg">
     
     <!-- 
       ╔════════════════════════════════════════════════════════════╗
@@ -161,10 +162,14 @@
             padding-bottom: 0.875rem;
         }
 
-        @media (min-width: 1024px) {
-            #verify-status-row.verify-hidden .status-panel {
-                grid-column: 1 / -1;
-            }
+        #verify-status-row {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        #verify-status-row > * {
+            min-width: 0;
         }
 
         .logo-font {
@@ -404,12 +409,12 @@
                 </div>
             </div>
 
-            <!-- Verification + Status (wide screens: same row) -->
+            <!-- Verification + Status (stacked; app-shell is narrow so side-by-side caused overlap) -->
             <div class="app-section">
-                <div id="verify-status-row" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div id="verify-status-row">
                     <div id="verify-section">
                         <div class="section-label">VERIFICATION</div>
-                        <label class="file-btn flex items-start gap-4 border rounded-2xl px-5 py-4 cursor-pointer h-full">
+                        <label class="file-btn flex items-start gap-4 border rounded-2xl px-5 py-4 cursor-pointer">
                             <input type="checkbox"
                                    id="verify-checkbox"
                                    class="mt-1 h-4 w-4 accent-cyan-500"

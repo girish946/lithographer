@@ -48,6 +48,9 @@ jobs:
       - name: vendor frontend assets
         run: npm run vendor-assets
 
+      - name: generate app icons
+        run: npm run generate-icons
+
       # Omit tagName and releaseId to build only (no GitHub release upload).
       - uses: tauri-apps/tauri-action@v0
         env:
@@ -123,6 +126,9 @@ jobs:
 
       - name: vendor frontend assets
         run: npm run vendor-assets
+
+      - name: generate app icons
+        run: npm run generate-icons
 
       - uses: tauri-apps/tauri-action@v0
         env:

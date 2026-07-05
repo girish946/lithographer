@@ -8,6 +8,7 @@
     "tauri:dev": "node scripts/run-platform.mjs prepare-sidecar && tauri dev",
     "tauri:build": "node scripts/run-platform.mjs prepare-sidecar && tauri build && node scripts/post-tauri-build.mjs",
     "prepare-sidecar": "node scripts/run-platform.mjs prepare-sidecar",
+    "generate-icons": "node scripts/run-platform.mjs generate-icons",
     "vendor-assets": "node scripts/run-platform.mjs vendor-assets",
     "tauri-build": "node scripts/run-platform.mjs tauri-build"
   },

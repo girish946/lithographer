@@ -20,6 +20,10 @@ const scripts = {
     win: path.join(root, 'scripts/tauri-build.ps1'),
     unix: path.join(root, 'scripts/tauri-build.sh'),
   },
+  'generate-icons': {
+    win: path.join(root, 'scripts/generate-app-icons.ps1'),
+    unix: path.join(root, 'scripts/generate-app-icons.sh'),
+  },
 };
 
 const entry = scripts[script];
