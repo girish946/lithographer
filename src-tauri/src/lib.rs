@@ -399,6 +399,29 @@ fn get_storage_devices() -> Result<Vec<StorageDeviceInfo>, String> {
 
 const IMAGE_EXTENSIONS: &[&str] = &["img", "iso", "raw", "dd", "bin", "xz", "wim", "dmg"];
 
+/// Resize the main window height to match rendered content (width unchanged).
+#[tauri::command]
+fn fit_window_to_content(
+    window: tauri::WebviewWindow,
+    content_height: f64,
+) -> Result<(), String> {
+    use tauri::{LogicalSize, Size};
+
+    const MIN_HEIGHT: f64 = 360.0;
+
+    let scale = window.scale_factor().map_err(|e| e.to_string())?;
+    let outer = window.outer_size().map_err(|e| e.to_string())?;
+    let logical_width = outer.width as f64 / scale;
+    let height = content_height.max(MIN_HEIGHT);
+
+    window
+        .set_size(Size::Logical(LogicalSize {
+            width: logical_width,
+            height,
+        }))
+        .map_err(|e| e.to_string())
+}
+
 /// Native open/save dialog for flash source or clone destination.
 #[tauri::command]
 fn pick_image_path(mode: String) -> Result<Option<String>, String> {
@@ -436,6 +459,7 @@ pub fn run() {
             get_launch_params,
             get_storage_devices,
             pick_image_path,
+            fit_window_to_content,
             start_litho_operation,
             cancel_litho_operation,
             get_litho_sidecar_path

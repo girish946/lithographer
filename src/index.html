@@ -38,7 +38,7 @@
         }
 
         html {
-            height: 100%;
+            height: auto;
         }
 
         html[data-theme="dark"] {
@@ -103,10 +103,68 @@
 
         body {
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
-            min-height: 100%;
+            margin: 0;
+            min-height: 0;
+            overflow-x: hidden;
             background-color: var(--bg);
             color: var(--text);
             transition: background-color 0.2s ease, color 0.2s ease;
+        }
+
+        html.compact body {
+            overflow-y: auto;
+        }
+
+        html:not(.compact) body {
+            overflow-y: hidden;
+        }
+
+        .app-section {
+            margin-bottom: 1.5rem;
+        }
+
+        html.compact .app-section {
+            margin-bottom: 1.125rem;
+        }
+
+        html.compact .app-header {
+            margin-bottom: 1.125rem;
+        }
+
+        html.compact .app-footer {
+            margin-top: 1.125rem;
+        }
+
+        html.compact .main-card {
+            padding: 1.25rem;
+        }
+
+        @media (min-width: 640px) {
+            html.compact .main-card {
+                padding: 1.5rem;
+            }
+        }
+
+        html.compact .mode-card {
+            padding: 1rem;
+        }
+
+        @media (min-width: 640px) {
+            html.compact .mode-card {
+                padding: 1.25rem;
+            }
+        }
+
+        html.compact .control-primary,
+        html.compact #cancel-button {
+            padding-top: 0.875rem;
+            padding-bottom: 0.875rem;
+        }
+
+        @media (min-width: 1024px) {
+            #verify-status-row.verify-hidden .status-panel {
+                grid-column: 1 / -1;
+            }
         }
 
         .logo-font {
@@ -252,10 +310,10 @@
         }
     </style>
 </head>
-<body class="py-6 sm:py-8 px-4">
+<body class="py-4 sm:py-5 px-4">
     <div class="app-shell w-full">
         <!-- Header -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <div class="app-header flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
             <div class="flex items-center gap-4">
                 <div class="main-logo-wrap w-16 h-16 sm:w-20 sm:h-20 rounded-3xl flex items-center justify-center border overflow-hidden shadow-sm">
                     <img id="app-logo" 
@@ -288,10 +346,10 @@
         </div>
 
         <!-- Main Content Card -->
-        <div class="glass rounded-3xl p-6 sm:p-8 shadow-xl border border-[var(--border-subtle)]">
+        <div class="main-card glass rounded-3xl p-5 sm:p-6 shadow-xl border border-[var(--border-subtle)]">
             
             <!-- Mode Selection -->
-            <div class="mb-8">
+            <div class="app-section">
                 <div class="section-label">OPERATION MODE</div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="mode-select">
                     <!-- Populated by JS or static cards -->
@@ -299,7 +357,7 @@
             </div>
 
             <!-- Target Device -->
-            <div class="mb-8">
+            <div class="app-section">
                 <div class="section-label">TARGET DEVICE</div>
                 
                 <div class="relative">
@@ -323,7 +381,7 @@
             </div>
 
             <!-- File Selection -->
-            <div class="mb-8">
+            <div class="app-section">
                 <div class="section-label" id="file-label">SOURCE IMAGE</div>
                 
                 <div class="flex flex-col sm:flex-row gap-3">
@@ -346,52 +404,48 @@
                 </div>
             </div>
 
-            <!-- Verification -->
-            <div id="verify-section" class="mb-8">
-                <div class="section-label">VERIFICATION</div>
-                <label class="file-btn flex items-start gap-4 border rounded-2xl px-5 py-4 cursor-pointer">
-                    <input type="checkbox"
-                           id="verify-checkbox"
-                           class="mt-1 h-4 w-4 accent-cyan-500"
-                           onchange="verifyChecksum = this.checked">
-                    <div class="min-w-0">
-                        <div class="font-semibold text-[15px]">Verify checksum after write</div>
-                        <div class="text-xs text-[var(--text-faint)] mt-1 leading-snug">
-                            Reads the device back and compares SHA-256 checksums. Slower but confirms the image was written correctly.
-                        </div>
+            <!-- Verification + Status (wide screens: same row) -->
+            <div class="app-section">
+                <div id="verify-status-row" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div id="verify-section">
+                        <div class="section-label">VERIFICATION</div>
+                        <label class="file-btn flex items-start gap-4 border rounded-2xl px-5 py-4 cursor-pointer h-full">
+                            <input type="checkbox"
+                                   id="verify-checkbox"
+                                   class="mt-1 h-4 w-4 accent-cyan-500"
+                                   onchange="verifyChecksum = this.checked">
+                            <div class="min-w-0">
+                                <div class="font-semibold text-[15px]">Verify checksum after write</div>
+                                <div class="text-xs text-[var(--text-faint)] mt-1 leading-snug">
+                                    Reads the device back and compares SHA-256 checksums. Slower but confirms the image was written correctly.
+                                </div>
+                            </div>
+                        </label>
                     </div>
-                </label>
-            </div>
 
-            <!-- Status + Progress -->
-            <div class="mb-8">
-                <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
-                    
-                    <!-- Status -->
-                    <div class="lg:col-span-3 status-panel rounded-2xl p-5">
+                    <div class="status-panel rounded-2xl p-5">
                         <div class="flex items-center justify-between mb-2">
                             <div class="section-label !mb-0">STATUS</div>
-                            <div id="status-text" 
+                            <div id="status-text"
                                  class="font-semibold text-sm px-3 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500">Ready</div>
                         </div>
                         <div id="status-detail" class="terminal-text text-[13px] text-[var(--text-muted)] break-words">
                             Waiting for operation...
                         </div>
                     </div>
-                    
-                    <!-- Progress -->
-                    <div class="lg:col-span-2 status-panel rounded-2xl p-5 flex flex-col">
-                        <div class="flex items-center justify-between mb-2">
-                            <div class="section-label !mb-0">PROGRESS</div>
-                            <div id="progress-text" class="font-mono text-sm font-medium tabular-nums">0%</div>
-                        </div>
-                        <div class="flex-1 flex items-center">
-                            <div class="progress-track w-full">
-                                <div id="progress-bar" class="progress-bar w-0"></div>
-                            </div>
-                        </div>
+                </div>
+            </div>
+
+            <!-- Progress (own row) -->
+            <div class="app-section">
+                <div class="status-panel rounded-2xl p-5">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="section-label !mb-0">PROGRESS</div>
+                        <div id="progress-text" class="font-mono text-sm font-medium tabular-nums">0%</div>
                     </div>
-                    
+                    <div class="progress-track w-full">
+                        <div id="progress-bar" class="progress-bar w-0"></div>
+                    </div>
                 </div>
             </div>
 
@@ -443,7 +497,7 @@
         </dialog>
 
         <!-- Footer -->
-        <div class="mt-8 text-center text-xs text-[var(--text-faint)]">
+        <div class="app-footer mt-5 text-center text-xs text-[var(--text-faint)]">
             Made with <span class="text-red-500">♥</span> by 
             <a href="https://github.com/girish946" target="_blank" class="hover:text-[var(--text-muted)] underline-offset-2 hover:underline">Girish Joshi</a>
         </div>
@@ -461,6 +515,9 @@
         let lithoEventUnlisten = null;
         let pendingFixedDevice = null;
         const THEME_STORAGE_KEY = "lithographer-theme";
+        let fitWindowRaf = null;
+        let windowFitObserver = null;
+        let lastFittedHeight = 0;
 
         const modes = [
             {
@@ -482,6 +539,59 @@
                 return Promise.reject(new Error("Tauri backend unavailable"));
             }
             return window.__TAURI__.core.invoke(cmd, args);
+        }
+
+        function measureContentHeight() {
+            return Math.ceil(document.documentElement.scrollHeight);
+        }
+
+        function maxWindowHeight() {
+            const screenHeight = window.screen?.availHeight || window.innerHeight;
+            return Math.floor(screenHeight * 0.92);
+        }
+
+        async function fitWindowToContent() {
+            if (!window.__TAURI__) return;
+
+            const maxHeight = maxWindowHeight();
+            document.documentElement.classList.remove("compact");
+
+            let contentHeight = measureContentHeight();
+            if (contentHeight > maxHeight) {
+                document.documentElement.classList.add("compact");
+                contentHeight = measureContentHeight();
+            }
+
+            const targetHeight = Math.min(contentHeight, maxHeight);
+            if (Math.abs(targetHeight - lastFittedHeight) < 2) return;
+
+            try {
+                await tauriInvoke("fit_window_to_content", { contentHeight: targetHeight });
+                lastFittedHeight = targetHeight;
+            } catch (err) {
+                console.warn("Failed to fit window to content:", err);
+            }
+        }
+
+        function scheduleFitWindow() {
+            if (fitWindowRaf) cancelAnimationFrame(fitWindowRaf);
+            fitWindowRaf = requestAnimationFrame(() => {
+                fitWindowRaf = requestAnimationFrame(() => {
+                    fitWindowRaf = null;
+                    fitWindowToContent();
+                });
+            });
+        }
+
+        function initWindowFit() {
+            scheduleFitWindow();
+
+            if (typeof ResizeObserver !== "undefined" && document.body) {
+                windowFitObserver = new ResizeObserver(() => scheduleFitWindow());
+                windowFitObserver.observe(document.body);
+            }
+
+            window.addEventListener("resize", scheduleFitWindow);
         }
 
         function basename(path) {
@@ -695,9 +805,11 @@
 
         function updateVerifySection() {
             const section = document.getElementById("verify-section");
+            const row = document.getElementById("verify-status-row");
             const checkbox = document.getElementById("verify-checkbox");
             const show = selectedMode === "flash";
             section.style.display = show ? "" : "none";
+            if (row) row.classList.toggle("verify-hidden", !show);
             checkbox.disabled = isRunning || !show;
             if (!show) {
                 verifyChecksum = false;
@@ -1125,6 +1237,7 @@
             await loadStorageDevices();
             await applyLaunchParamsIfAny();
             ensureLithoEventListener();
+            initWindowFit();
         };
     </script>
 </body>
