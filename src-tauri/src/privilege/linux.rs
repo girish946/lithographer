@@ -51,10 +51,7 @@ pub fn elevation_backend_label(backend: ElevationBackend) -> &'static str {
 }
 
 /// Build a command that runs `litho` with `args` using the configured elevation backend.
-pub fn build_elevated_litho_command(
-    litho_path: &Path,
-    args: &[String],
-) -> Result<Command, String> {
+pub fn build_elevated_litho_command(litho_path: &Path, args: &[String]) -> Result<Command, String> {
     let backend = elevation_backend();
     match backend {
         ElevationBackend::Pkexec => build_pkexec_command(litho_path, args),

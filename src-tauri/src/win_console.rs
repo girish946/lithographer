@@ -67,12 +67,9 @@ fn reopen_std_handle(std_handle: winapi::shared::minwindef::DWORD) {
     use winapi::um::fileapi::{CreateFileW, OPEN_EXISTING};
     use winapi::um::handleapi::INVALID_HANDLE_VALUE;
     use winapi::um::processenv::SetStdHandle;
-    use winapi::um::winnt::{FILE_ATTRIBUTE_NORMAL, GENERIC_WRITE, FILE_SHARE_WRITE};
+    use winapi::um::winnt::{FILE_ATTRIBUTE_NORMAL, FILE_SHARE_WRITE, GENERIC_WRITE};
 
-    let conout: Vec<u16> = OsStr::new("CONOUT$")
-        .encode_wide()
-        .chain(Some(0))
-        .collect();
+    let conout: Vec<u16> = OsStr::new("CONOUT$").encode_wide().chain(Some(0)).collect();
 
     unsafe {
         let handle = CreateFileW(

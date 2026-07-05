@@ -48,6 +48,8 @@ pub struct LithoRunRequest {
     pub image: String,
     pub block_size: usize,
     pub verify: bool,
+    /// User confirmed automatic unmount of volumes on the target disk (`--yes` for litho).
+    pub auto_unmount: bool,
 }
 
 pub fn spawn_litho_operation(
@@ -64,15 +66,15 @@ pub fn spawn_litho_operation(
     }
 
     let litho_path = resolve_litho_binary(&app)?;
-    validate_device_safe_for_io(&request.device)?;
+    liblitho::devices::validate_device_for_io(&request.device)?;
 
     #[cfg(windows)]
     if !has_privileged_access() {
         return handoff_to_elevated_lithographer(app, &request);
     }
 
-    let cancel_file = create_cancel_file()
-        .map_err(|e| format!("Failed to create cancel flag file: {e}"))?;
+    let cancel_file =
+        create_cancel_file().map_err(|e| format!("Failed to create cancel flag file: {e}"))?;
 
     let device = request.device.clone();
     let mode = request.mode.to_lowercase();
@@ -100,11 +102,10 @@ pub fn spawn_litho_operation(
         litho_args.push("--verify".to_string());
     }
 
-    // Windows: litho requires --yes to dismount drive letters on the target disk before raw I/O.
-    #[cfg(windows)]
-    {
-        litho_args.push("--yes".to_string());
-    }
+    // Lithographer only spawns litho after explicit user confirmation (Start / mount dialog).
+    // --yes lets litho auto-unmount/dismount volumes on the target disk before raw I/O.
+    let _ = request.auto_unmount;
+    litho_args.push("--yes".to_string());
 
     let mut cmd = if has_privileged_access() {
         let mut c = Command::new(&litho_path);
@@ -236,6 +237,9 @@ fn lithographer_elevation_cli_args(request: &LithoRunRequest) -> Vec<String> {
     if request.verify {
         args.push("--verify".to_string());
     }
+    if request.auto_unmount {
+        args.push("--auto-unmount".to_string());
+    }
     args
 }
 
@@ -259,7 +263,10 @@ fn detach_parent_console_before_spawn() {
 /// UAC cannot pipe stdout from an elevated litho child. Relaunch Lithographer elevated
 /// so litho runs as a normal piped subprocess in the elevated GUI session.
 #[cfg(windows)]
-fn handoff_to_elevated_lithographer(app: AppHandle, request: &LithoRunRequest) -> Result<(), String> {
+fn handoff_to_elevated_lithographer(
+    app: AppHandle,
+    request: &LithoRunRequest,
+) -> Result<(), String> {
     let args = lithographer_elevation_cli_args(request);
     println!(
         "Handing off to elevated Lithographer (mode=uac-relaunch): {:?}",
@@ -269,7 +276,9 @@ fn handoff_to_elevated_lithographer(app: AppHandle, request: &LithoRunRequest) -
     crate::privilege::relaunch_elevated_lithographer(&args).map_err(|message| {
         let _ = app.emit(
             "litho-event",
-            LithoUiEvent::Error { message: message.clone() },
+            LithoUiEvent::Error {
+                message: message.clone(),
+            },
         );
         message
     })?;
@@ -326,8 +335,7 @@ pub fn cancel_litho_operation(state: &SharedLithoRunner) -> Result<(), String> {
     };
 
     let path = cancel_file.ok_or_else(|| "Cancel flag file is not available.".to_string())?;
-    request_cancel_via_file(&path)
-        .map_err(|e| format!("Failed to write cancel flag file: {e}"))?;
+    request_cancel_via_file(&path).map_err(|e| format!("Failed to write cancel flag file: {e}"))?;
 
     // Stdin is a best-effort fallback when pkexec forwards it (usually it does not).
     let mut guard = state.lock().map_err(|e| e.to_string())?;

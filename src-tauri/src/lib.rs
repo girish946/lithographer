@@ -48,6 +48,7 @@ struct LaunchParams {
     device: Option<String>,
     image: Option<String>,
     auto_run: bool,
+    auto_unmount: bool,
     verify: bool,
     block_size: Option<usize>,
 }
@@ -59,6 +60,7 @@ fn parse_launch_args() -> LaunchParams {
         device: None,
         image: None,
         auto_run: false,
+        auto_unmount: false,
         verify: false,
         block_size: None,
     };
@@ -93,6 +95,9 @@ fn parse_launch_args() -> LaunchParams {
             }
             "--auto-run" => {
                 params.auto_run = true;
+            }
+            "--auto-unmount" => {
+                params.auto_unmount = true;
             }
             "--verify" => {
                 params.verify = true;
@@ -170,9 +175,7 @@ fn litho_spawn_preview(sidecar: &Path, is_elevated: bool) -> String {
 
     #[cfg(windows)]
     {
-        return format!(
-            "UAC runas → lithographer --auto-run … → {litho} {args}"
-        );
+        return format!("UAC runas → lithographer --auto-run … → {litho} {args}");
     }
 
     #[cfg(not(windows))]
@@ -198,7 +201,8 @@ fn perform_startup_checks_with_sidecar(sidecar: Option<&Path>) -> StartupDiagnos
         let agent = Some("UAC (User Account Control)".to_string());
         let ready = true;
         let status = if is_elevated {
-            "Running elevated (Administrator). Flash/clone operations will run directly.".to_string()
+            "Running elevated (Administrator). Flash/clone operations will run directly."
+                .to_string()
         } else {
             "UAC available. Litho will request administrator approval when an operation starts."
                 .to_string()
@@ -337,6 +341,7 @@ fn start_litho_operation(
     image: String,
     block_size: Option<usize>,
     verify: Option<bool>,
+    auto_unmount: Option<bool>,
 ) -> Result<(), String> {
     let diag = perform_startup_checks();
     if !diag.is_root && !diag.polkit_agent_is_executable {
@@ -354,16 +359,17 @@ fn start_litho_operation(
     let launch = parse_launch_args();
     if launch.auto_run {
         // UAC handoff replays the same device path; WMI may enumerate slightly later.
-        litho_devices::validate_device_safe_for_io(&device)?;
+        validate_device_for_operation(&device)?;
     } else {
         let known_devices = query_storage_devices()?;
         let known_paths: Vec<String> = known_devices.iter().map(|d| d.path.clone()).collect();
-        litho_devices::validate_listed_block_device(&device, &known_paths)?;
+        litho_devices::validate_listed_block_device(&device, &known_paths)
+            .map_err(map_device_validation_error)?;
     }
 
-    let io_block_size = block_size
-        .unwrap_or_else(|| litho_devices::optimal_io_block_size(&device));
-    let verify = verify.unwrap_or(false);
+    let io_block_size = block_size.unwrap_or_else(|| litho_devices::optimal_io_block_size(&device));
+    let verify = verify.unwrap_or(launch.verify);
+    let auto_unmount = auto_unmount.unwrap_or(launch.auto_unmount);
 
     spawn_litho_operation(
         app,
@@ -374,6 +380,7 @@ fn start_litho_operation(
             image,
             block_size: io_block_size,
             verify,
+            auto_unmount,
         },
     )
 }
@@ -391,6 +398,12 @@ fn get_litho_sidecar_path(app: tauri::AppHandle) -> Result<String, String> {
 // Device enumeration and disk I/O use the litho Rust library (liblitho) in-process.
 
 #[derive(serde::Serialize, Clone, Debug)]
+pub struct DeviceMountInfo {
+    pub source: String,
+    pub mount_point: String,
+}
+
+#[derive(serde::Serialize, Clone, Debug)]
 pub struct StorageDeviceInfo {
     /// Human friendly name, e.g. "SanDisk Ultra" or basename of the device
     pub name: String,
@@ -400,6 +413,25 @@ pub struct StorageDeviceInfo {
     pub size: String,
     pub removable: bool,
     pub model: String,
+    /// True when partitions on this disk are mounted (Linux) or drive letters are assigned (Windows).
+    pub mounted: bool,
+    pub mounts: Vec<DeviceMountInfo>,
+}
+
+fn validate_device_for_operation(device: &str) -> Result<(), String> {
+    litho_devices::validate_device_for_io(device).map_err(map_device_validation_error)
+}
+
+fn map_device_validation_error(err: String) -> String {
+    if err.contains("still mounted") || err.contains("device is mounted") {
+        return err;
+    }
+    if err.contains("system disk") {
+        return format!(
+            "{err} Choose a removable USB drive or another non-system disk."
+        );
+    }
+    err
 }
 
 fn format_size_from_sectors(sectors: u64) -> String {
@@ -443,23 +475,34 @@ fn query_storage_devices() -> Result<Vec<StorageDeviceInfo>, String> {
                 display_name
             };
 
+            let path = raw.device_name.clone();
+            let mounts: Vec<DeviceMountInfo> = litho_devices::list_device_mounts(&path)
+                .unwrap_or_default()
+                .into_iter()
+                .map(|m| DeviceMountInfo {
+                    source: m.source,
+                    mount_point: m.mount_point,
+                })
+                .collect();
+            let mounted = !mounts.is_empty();
+
             StorageDeviceInfo {
                 name,
-                path: raw.device_name.clone(),
+                path,
                 size: format_size_from_sectors(raw.size),
                 removable: raw.removable != 0,
                 model: model.to_string(),
+                mounted,
+                mounts,
             }
         })
         .collect();
 
     // Sort: removable devices first, then by path for stable order
-    devices.sort_by(|a, b| {
-        match (a.removable, b.removable) {
-            (true, false) => std::cmp::Ordering::Less,
-            (false, true) => std::cmp::Ordering::Greater,
-            _ => a.path.cmp(&b.path),
-        }
+    devices.sort_by(|a, b| match (a.removable, b.removable) {
+        (true, false) => std::cmp::Ordering::Less,
+        (false, true) => std::cmp::Ordering::Greater,
+        _ => a.path.cmp(&b.path),
     });
 
     Ok(devices)
@@ -474,10 +517,7 @@ const IMAGE_EXTENSIONS: &[&str] = &["img", "iso", "raw", "dd", "bin", "xz", "wim
 
 /// Resize the main window height to match rendered content (width unchanged).
 #[tauri::command]
-fn fit_window_to_content(
-    window: tauri::WebviewWindow,
-    content_height: f64,
-) -> Result<(), String> {
+fn fit_window_to_content(window: tauri::WebviewWindow, content_height: f64) -> Result<(), String> {
     use tauri::{LogicalSize, Size};
 
     const MIN_HEIGHT: f64 = 360.0;
@@ -593,5 +633,4 @@ mod tests {
         // In normal test runs we are not root
         // (this is informational)
     }
-
 }

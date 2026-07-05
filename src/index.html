@@ -363,7 +363,15 @@
 
             <!-- Target Device -->
             <div class="app-section">
-                <div class="section-label">TARGET DEVICE</div>
+                <div class="flex items-center justify-between gap-3">
+                    <div class="section-label !mb-0">TARGET DEVICE</div>
+                    <button type="button"
+                            onclick="loadStorageDevices()"
+                            title="Refresh device list and mount status"
+                            class="text-xs font-medium text-[var(--text-faint)] hover:text-[var(--text-muted)] px-2 py-1 rounded-lg hover:bg-[var(--surface-hover)] transition-colors">
+                        <i class="fa-solid fa-rotate-right mr-1"></i>Refresh
+                    </button>
+                </div>
                 
                 <div class="relative">
                     <select id="diskSelect" 
@@ -382,6 +390,18 @@
                      class="hidden mt-3 flex items-start gap-3 p-4 rounded-2xl border border-amber-400/30 bg-amber-400/10 text-amber-600 dark:text-amber-400 text-sm">
                     <i class="fa-solid fa-triangle-exclamation mt-0.5 shrink-0"></i>
                     <span class="leading-snug">This device is not removable. Writing to it can destroy data.</span>
+                </div>
+
+                <div id="mounted-device-warning"
+                     class="hidden mt-3 flex items-start gap-3 p-4 rounded-2xl border border-sky-400/30 bg-sky-400/10 text-sky-700 dark:text-sky-300 text-sm">
+                    <i class="fa-solid fa-circle-info mt-0.5 shrink-0"></i>
+                    <div class="leading-snug min-w-0">
+                        <div class="font-medium">Mounted volumes detected</div>
+                        <p id="mounted-device-detail" class="mt-1 text-[var(--text-muted)]"></p>
+                        <p class="mt-2 text-xs text-[var(--text-faint)]">
+                            When you start, Lithographer will ask you to confirm, then unmount these volumes automatically before writing.
+                        </p>
+                    </div>
                 </div>
             </div>
 
@@ -501,6 +521,40 @@
             </div>
         </dialog>
 
+        <!-- Mounted volumes confirmation -->
+        <dialog id="mounted-device-modal"
+                class="glass rounded-3xl p-0 w-full max-w-md border border-sky-400/30 shadow-2xl backdrop:bg-black/60">
+            <div class="p-6">
+                <div class="flex gap-4">
+                    <div class="w-11 h-11 rounded-2xl bg-sky-400/10 flex-shrink-0 flex items-center justify-center text-sky-500">
+                        <i class="fa-solid fa-hard-drive text-2xl"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <h3 class="font-semibold text-lg">Unmount volumes before writing?</h3>
+                        <p class="text-sm text-[var(--text-muted)] mt-1">
+                            Litho will unmount the volumes below automatically, then flash or clone the whole disk.
+                        </p>
+                        <div id="mounted-device-modal-detail"
+                             class="mt-4 text-sm font-medium bg-[var(--chip)] border border-[var(--border-subtle)] px-4 py-2.5 rounded-2xl break-all"></div>
+                        <p class="mt-3 text-xs text-[var(--text-faint)]">
+                            Close apps using these paths. All data on the target disk will be overwritten.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex border-t border-[var(--border-subtle)]">
+                <button onclick="confirmMountedDeviceSelection(false)"
+                        class="flex-1 py-4 text-sm font-medium border-r border-[var(--border-subtle)] hover:bg-[var(--surface-hover)] rounded-bl-3xl transition-colors">
+                    Cancel
+                </button>
+                <button onclick="confirmMountedDeviceSelection(true)"
+                        class="flex-1 py-4 text-sm font-semibold text-sky-600 hover:bg-sky-500/5 rounded-br-3xl transition-colors">
+                    Unmount and continue
+                </button>
+            </div>
+        </dialog>
+
         <!-- Footer -->
         <div class="app-footer mt-5 text-center text-xs text-[var(--text-faint)]">
             Made with <span class="text-red-500">♥</span> by 
@@ -521,6 +575,7 @@
         let lastLithoError = null;
         let launchBlockSize = null;
         let pendingFixedDevice = null;
+        let pendingMountedStart = false;
         const THEME_STORAGE_KEY = "lithographer-theme";
         let fitWindowRaf = null;
         let windowFitObserver = null;
@@ -676,8 +731,16 @@
         }
 
         function defaultDeviceIndex() {
-            const removableIdx = devices.findIndex(d => d.removable);
-            return removableIdx !== -1 ? removableIdx : (devices.length > 0 ? 0 : -1);
+            const readyRemovableIdx = devices.findIndex((d) => d.removable && !d.mounted);
+            if (readyRemovableIdx !== -1) return readyRemovableIdx;
+
+            const removableIdx = devices.findIndex((d) => d.removable);
+            if (removableIdx !== -1) return removableIdx;
+
+            const readyIdx = devices.findIndex((d) => !d.mounted);
+            if (readyIdx !== -1) return readyIdx;
+
+            return devices.length > 0 ? 0 : -1;
         }
 
         function deviceIndexByPath(path) {
@@ -685,27 +748,63 @@
             return devices.findIndex(d => d.path === path || d.path.endsWith(path));
         }
 
+        function deviceMountSummary(device) {
+            if (!device || !device.mounts || !device.mounts.length) return "";
+            return device.mounts
+                .map((m) => `${m.source} → ${m.mount_point}`)
+                .join(", ");
+        }
+
+        function updateStartButtonState() {
+            const startBtn = document.getElementById("start-button");
+            if (!startBtn || isRunning) return;
+
+            startBtn.classList.remove("opacity-60", "cursor-not-allowed");
+            startBtn.disabled = false;
+            startBtn.title = selectedDevice && selectedDevice.mounted
+                ? "Mounted volumes will be unmounted automatically after you confirm."
+                : "";
+        }
+
         function updateDeviceInfo() {
             const infoEl = document.getElementById("device-info");
             const warningEl = document.getElementById("fixed-device-warning");
+            const mountedWarningEl = document.getElementById("mounted-device-warning");
+            const mountedDetailEl = document.getElementById("mounted-device-detail");
 
             if (!selectedDevice) {
                 infoEl.innerHTML = "";
                 warningEl.classList.add("hidden");
+                mountedWarningEl.classList.add("hidden");
+                updateStartButtonState();
                 return;
             }
 
             const removableHTML = selectedDevice.removable 
                 ? `<span class="pill text-emerald-500 border-emerald-400/30">● Removable</span>`
                 : `<span class="pill text-amber-500 border-amber-400/30">● Fixed</span>`;
+            const mountedHTML = selectedDevice.mounted
+                ? `<span class="pill text-sky-600 border-sky-400/30 dark:text-sky-300">● Mounted</span>`
+                : "";
 
             infoEl.innerHTML = `
                 <span class="pill font-mono text-xs px-3 py-1">${selectedDevice.path}</span>
                 <span class="pill">${selectedDevice.size}</span>
                 ${removableHTML}
+                ${mountedHTML}
             `;
 
             warningEl.classList.toggle("hidden", selectedDevice.removable);
+
+            if (selectedDevice.mounted) {
+                mountedDetailEl.textContent = deviceMountSummary(selectedDevice);
+                mountedWarningEl.classList.remove("hidden");
+            } else {
+                mountedDetailEl.textContent = "";
+                mountedWarningEl.classList.add("hidden");
+            }
+
+            updateStartButtonState();
         }
 
         function applyDeviceSelection(index, selectEl) {
@@ -756,7 +855,8 @@
             devices.forEach((device, index) => {
                 const opt = document.createElement("option");
                 opt.value = index;
-                opt.textContent = `${device.name} • ${device.size} ${device.removable ? "(Removable)" : "(Fixed)"}`;
+                const mountTag = device.mounted ? " • Mounted" : "";
+                opt.textContent = `${device.name} • ${device.size} ${device.removable ? "(Removable)" : "(Fixed)"}${mountTag}`;
                 select.appendChild(opt);
             });
         }
@@ -1025,6 +1125,22 @@
             lithoEventUnlisten = await window.__TAURI__.event.listen("litho-event", handleLithoEvent);
         }
 
+        function showMountedDeviceConfirm() {
+            pendingMountedStart = true;
+            document.getElementById("mounted-device-modal-detail").textContent =
+                deviceMountSummary(selectedDevice);
+            document.getElementById("mounted-device-modal").showModal();
+        }
+
+        function confirmMountedDeviceSelection(accept) {
+            document.getElementById("mounted-device-modal").close();
+            const shouldStart = pendingMountedStart && accept;
+            pendingMountedStart = false;
+            if (shouldStart) {
+                startProcessInternal(true);
+            }
+        }
+
         async function startProcess() {
             const needsFile = selectedMode === "flash"
                 ? "Please select a device and a source image file."
@@ -1036,6 +1152,18 @@
             }
 
             if (isRunning) return;
+
+            if (selectedDevice.mounted) {
+                showMountedDeviceConfirm();
+                return;
+            }
+
+            // Start is the destructive-action confirmation; litho gets --yes to auto-unmount if needed.
+            await startProcessInternal(true);
+        }
+
+        async function startProcessInternal(autoUnmount = true) {
+            if (!selectedDevice || !selectedFile || isRunning) return;
 
             await ensureLithoEventListener();
 
@@ -1059,6 +1187,7 @@
                     device: selectedDevice.path,
                     image: selectedFile.path,
                     verify: selectedMode === "flash" && document.getElementById("verify-checkbox").checked,
+                    auto_unmount: autoUnmount,
                 };
                 if (launchBlockSize) {
                     payload.block_size = launchBlockSize;
@@ -1077,8 +1206,8 @@
             isRunning = false;
             cancelPending = false;
             updateVerifySection();
-            document.getElementById("start-button").classList.remove("opacity-60", "cursor-not-allowed");
             document.getElementById("cancel-button").classList.add("hidden");
+            updateStartButtonState();
             setOperationStatus("CANCELLED", "bg-orange-500/10 text-orange-500", message);
         }
 
@@ -1087,8 +1216,8 @@
             isRunning = false;
             cancelPending = false;
             updateVerifySection();
-            document.getElementById("start-button").classList.remove("opacity-60", "cursor-not-allowed");
             document.getElementById("cancel-button").classList.add("hidden");
+            updateStartButtonState();
             setOperationStatus("ERROR", "bg-red-500/10 text-red-500", message);
         }
 
@@ -1097,8 +1226,8 @@
             isRunning = false;
             cancelPending = false;
             updateVerifySection();
-            document.getElementById("start-button").classList.remove("opacity-60", "cursor-not-allowed");
             document.getElementById("cancel-button").classList.add("hidden");
+            updateStartButtonState();
 
             const statusEl = document.getElementById("status-text");
             statusEl.textContent = "COMPLETE";
@@ -1275,23 +1404,32 @@
                     "bg-amber-500/10 text-amber-500",
                     "Continuing after UAC elevation…"
                 );
-                await startProcess();
+                await startProcessInternal(!!params.auto_unmount);
             } catch (err) {
                 console.warn("Failed to auto-start from launch params:", err);
             }
         }
 
         function handleKeyboard(e) {
-            const modal = document.getElementById("fixed-device-modal");
-            const modalOpen = modal && modal.open;
+            const fixedModal = document.getElementById("fixed-device-modal");
+            const mountedModal = document.getElementById("mounted-device-modal");
+            const modalOpen = (fixedModal && fixedModal.open) || (mountedModal && mountedModal.open);
 
             if (modalOpen) {
                 if (e.key === "Escape") {
                     e.preventDefault();
-                    confirmFixedDeviceSelection(false);
+                    if (mountedModal && mountedModal.open) {
+                        confirmMountedDeviceSelection(false);
+                    } else {
+                        confirmFixedDeviceSelection(false);
+                    }
                 } else if (e.key === "Enter") {
                     e.preventDefault();
-                    confirmFixedDeviceSelection(true);
+                    if (mountedModal && mountedModal.open) {
+                        confirmMountedDeviceSelection(true);
+                    } else {
+                        confirmFixedDeviceSelection(true);
+                    }
                 }
                 return;
             }

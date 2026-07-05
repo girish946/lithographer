@@ -9,7 +9,7 @@ use winapi::um::handleapi::CloseHandle;
 use winapi::um::processthreadsapi::{GetCurrentProcess, GetExitCodeProcess, OpenProcessToken};
 use winapi::um::securitybaseapi::GetTokenInformation;
 use winapi::um::shellapi::{
-    ShellExecuteExW, ShellExecuteW, SHELLEXECUTEINFOW, SEE_MASK_NOCLOSEPROCESS,
+    ShellExecuteExW, ShellExecuteW, SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW,
 };
 use winapi::um::synchapi::WaitForSingleObject;
 use winapi::um::winbase::INFINITE;
@@ -66,9 +66,7 @@ pub fn is_elevated() -> bool {
             return false;
         }
 
-        let mut elevation = TOKEN_ELEVATION {
-            TokenIsElevated: 0,
-        };
+        let mut elevation = TOKEN_ELEVATION { TokenIsElevated: 0 };
         let mut size = 0;
         let ok = GetTokenInformation(
             token,
@@ -127,7 +125,10 @@ pub fn relaunch_elevated_lithographer(args: &[String]) -> Result<(), String> {
 /// Launch litho elevated via UAC and wait (no stdout capture). Prefer
 /// `relaunch_elevated_lithographer` so litho runs as a piped child instead.
 #[allow(dead_code)]
-pub fn spawn_elevated_litho_and_wait(litho_path: &Path, args: &[String]) -> Result<Option<i32>, String> {
+pub fn spawn_elevated_litho_and_wait(
+    litho_path: &Path,
+    args: &[String],
+) -> Result<Option<i32>, String> {
     let verb = wide("runas");
     let file = wide(&litho_path.to_string_lossy());
     let parameters = wide(&windows_argument_string(args));
@@ -160,7 +161,9 @@ pub fn spawn_elevated_litho_and_wait(litho_path: &Path, args: &[String]) -> Resu
         unsafe {
             CloseHandle(info.hProcess);
         }
-        return Err(format!("Failed waiting for elevated litho process (code {wait})."));
+        return Err(format!(
+            "Failed waiting for elevated litho process (code {wait})."
+        ));
     }
 
     let mut exit_code: DWORD = 0;
@@ -190,9 +193,7 @@ fn windows_argument_string(args: &[String]) -> String {
 }
 
 fn needs_windows_quoting(arg: &str) -> bool {
-    arg.is_empty()
-        || arg.chars().any(|c| c.is_whitespace() || c == '"')
-        || arg.contains('\\')
+    arg.is_empty() || arg.chars().any(|c| c.is_whitespace() || c == '"') || arg.contains('\\')
 }
 
 fn wide(value: &str) -> Vec<u16> {

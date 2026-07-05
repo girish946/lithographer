@@ -160,7 +160,13 @@ mod tests {
             "@progress phase=writing pct=45.2 bytes=1234567 total=536870912",
         );
         match event {
-            LithoUiEvent::Progress { phase, pct, bytes, total, .. } => {
+            LithoUiEvent::Progress {
+                phase,
+                pct,
+                bytes,
+                total,
+                ..
+            } => {
                 assert_eq!(phase.as_deref(), Some("writing"));
                 assert!((pct.unwrap() - 45.2).abs() < f64::EPSILON);
                 assert_eq!(bytes, Some(1_234_567));

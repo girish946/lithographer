@@ -112,9 +112,8 @@ fn bundled_sidecar_candidates(app: &AppHandle) -> Vec<PathBuf> {
     if let Ok(appdir) = std::env::var("APPDIR") {
         for name in sidecar_filenames(triple) {
             candidates.push(PathBuf::from(&appdir).join(format!("usr/bin/{name}")));
-            candidates.push(
-                PathBuf::from(&appdir).join(format!("usr/lib/lithographer/binaries/{name}")),
-            );
+            candidates
+                .push(PathBuf::from(&appdir).join(format!("usr/lib/lithographer/binaries/{name}")));
         }
     }
 
@@ -177,10 +176,7 @@ fn prepare_for_pkexec(path: &Path) -> Result<PathBuf, String> {
         return Ok(path.to_path_buf());
     }
 
-    let dest = std::env::temp_dir().join(format!(
-        "lithographer-litho-{}",
-        std::process::id()
-    ));
+    let dest = std::env::temp_dir().join(format!("lithographer-litho-{}", std::process::id()));
     fs::copy(path, &dest).map_err(|e| format!("Failed to stage litho sidecar for pkexec: {e}"))?;
     {
         use std::os::unix::fs::PermissionsExt;
@@ -231,7 +227,11 @@ mod tests {
 
     #[test]
     fn dedupe_paths_removes_duplicates() {
-        let paths = dedupe_paths(vec![PathBuf::from("/a"), PathBuf::from("/a"), PathBuf::from("/b")]);
+        let paths = dedupe_paths(vec![
+            PathBuf::from("/a"),
+            PathBuf::from("/a"),
+            PathBuf::from("/b"),
+        ]);
         assert_eq!(paths.len(), 2);
     }
 
@@ -239,7 +239,9 @@ mod tests {
     #[test]
     fn windows_sidecar_filenames_include_exe() {
         let names = sidecar_filenames("x86_64-pc-windows-msvc");
-        assert!(names.iter().any(|n| n == "litho-x86_64-pc-windows-msvc.exe"));
+        assert!(names
+            .iter()
+            .any(|n| n == "litho-x86_64-pc-windows-msvc.exe"));
         assert!(names.iter().any(|n| n == "litho.exe"));
     }
 }
