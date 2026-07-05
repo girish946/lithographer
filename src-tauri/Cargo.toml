@@ -32,6 +32,24 @@ rfd = "0.15"
 # We are NOT bundling the separate `litho` binary for now.
 liblitho = { path = "../../litho" }
 
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3.9", features = [
+  "consoleapi",
+  "errhandlingapi",
+  "fileapi",
+  "handleapi",
+  "processenv",
+  "processthreadsapi",
+  "sysinfoapi",
+  "securitybaseapi",
+  "shellapi",
+  "synchapi",
+  "winbase",
+  "wincon",
+  "winnt",
+  "winuser",
+] }
+
 [target.'cfg(target_os = "linux")'.dependencies]
 # Pin webkit2gtk for Linux Tauri builds (WebKitGTK). Windows uses WebView2 via Tauri.
 # Compatible with WebKitGTK 4.0 / javascriptcoregtk-4.0 on Ubuntu 22.04 Docker images.

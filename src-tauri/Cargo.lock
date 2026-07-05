@@ -2438,6 +2438,7 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-opener",
  "webkit2gtk",
+ "winapi",
 ]
 
 [[package]]

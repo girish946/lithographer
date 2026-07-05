@@ -1,6 +1,7 @@
 mod litho_output;
 mod litho_runner;
 mod litho_sidecar;
+mod privilege;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -14,6 +15,7 @@ use litho_runner::{
 };
 
 use std::fs;
+use std::path::Path;
 use std::process::Command;
 use std::sync::{Arc, Mutex};
 
@@ -24,11 +26,23 @@ use liblitho::devices::{self as litho_devices, DeviceInfo as LithoDeviceInfo};
 
 #[derive(serde::Serialize)]
 struct StartupDiagnostics {
+    platform: String,
     desktop_environment: String,
     current_user: String,
+    is_elevated: bool,
+    elevation_method: String,
+    elevation_agent: Option<String>,
+    elevation_ready: bool,
+    elevation_status: String,
+    spawn_mode: String,
+    litho_spawn_preview: String,
+    /// Legacy alias for `is_elevated` (Linux root / Windows Administrator).
     is_root: bool,
+    /// Legacy alias for `elevation_agent` on Linux (polkit agent path).
     polkit_agent_path: Option<String>,
+    /// Legacy alias for `elevation_ready`.
     polkit_agent_is_executable: bool,
+    /// Legacy alias for `elevation_status`.
     polkit_status: String,
 }
 
@@ -37,6 +51,9 @@ struct LaunchParams {
     mode: Option<String>,
     device: Option<String>,
     image: Option<String>,
+    auto_run: bool,
+    verify: bool,
+    block_size: Option<usize>,
 }
 
 fn parse_launch_args() -> LaunchParams {
@@ -45,6 +62,9 @@ fn parse_launch_args() -> LaunchParams {
         mode: None,
         device: None,
         image: None,
+        auto_run: false,
+        verify: false,
+        block_size: None,
     };
 
     let mut i = 0;
@@ -68,6 +88,18 @@ fn parse_launch_args() -> LaunchParams {
                     params.image = Some(args[i + 1].clone());
                     i += 1;
                 }
+            }
+            "--block-size" | "-b" => {
+                if i + 1 < args.len() {
+                    params.block_size = args[i + 1].parse().ok();
+                    i += 1;
+                }
+            }
+            "--auto-run" => {
+                params.auto_run = true;
+            }
+            "--verify" => {
+                params.verify = true;
             }
             _ if !arg.starts_with('-') => {
                 // positional args: first = image, second = device
@@ -115,12 +147,7 @@ fn get_current_user() -> String {
 }
 
 pub(crate) fn is_running_as_root() -> bool {
-    if let Ok(output) = Command::new("id").arg("-u").output() {
-        let uid = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        uid == "0"
-    } else {
-        false
-    }
+    privilege::has_privileged_access()
 }
 
 fn extract_executable_path_from_ps(line: &str) -> Option<String> {
@@ -231,35 +258,178 @@ fn is_file_executable(path: &str) -> bool {
     }
 }
 
-fn perform_startup_checks() -> StartupDiagnostics {
-    let desktop_environment = get_desktop_environment();
-    let current_user = get_current_user();
-    let is_root = is_running_as_root();
-    let polkit_agent_path = find_polkit_auth_agent();
-    let polkit_agent_is_executable = polkit_agent_path
-        .as_ref()
-        .map(|p| is_file_executable(p))
-        .unwrap_or(false);
-    // Privileged re-launch is deferred until the user starts an operation.
-    let polkit_status = if polkit_agent_path.as_ref().map_or(false, |p| is_file_executable(p)) {
-        "Polkit agent present. Elevation deferred until operation is requested.".to_string()
+fn platform_name() -> String {
+    if cfg!(windows) {
+        "windows".to_string()
+    } else if cfg!(target_os = "linux") {
+        "linux".to_string()
     } else {
-        "No usable polkit authentication agent detected at startup.".to_string()
+        std::env::consts::OS.to_string()
+    }
+}
+
+fn litho_gui_args_preview() -> &'static str {
+    "-o gui <flash|clone> -f <image> -d <device> -b <block_size> --cancel-file <path> [--verify]"
+}
+
+fn litho_spawn_preview(sidecar: &Path, is_elevated: bool) -> String {
+    let litho = sidecar.display();
+    let args = litho_gui_args_preview();
+
+    if is_elevated {
+        return format!("{litho} {args}");
+    }
+
+    #[cfg(windows)]
+    {
+        return format!(
+            "UAC runas → lithographer --auto-run … → {litho} {args}"
+        );
+    }
+
+    #[cfg(not(windows))]
+    {
+        format!("pkexec {litho} {args}")
+    }
+}
+
+fn litho_spawn_preview_unresolved(is_elevated: bool) -> String {
+    litho_spawn_preview(Path::new("<litho-sidecar>"), is_elevated)
+}
+
+fn perform_startup_checks_with_sidecar(sidecar: Option<&Path>) -> StartupDiagnostics {
+    let platform = platform_name();
+    let desktop_environment = privilege::platform_environment();
+    let current_user = get_current_user();
+    let is_elevated = privilege::has_privileged_access();
+    let elevation_method = privilege::elevation_method().to_string();
+    let spawn_mode = privilege::spawn_mode().to_string();
+
+    #[cfg(windows)]
+    let (elevation_agent, elevation_ready, elevation_status) = {
+        let agent = Some("UAC (User Account Control)".to_string());
+        let ready = true;
+        let status = if is_elevated {
+            "Running elevated (Administrator). Flash/clone operations will run directly.".to_string()
+        } else {
+            "UAC available. Litho will request administrator approval when an operation starts."
+                .to_string()
+        };
+        (agent, ready, status)
+    };
+
+    #[cfg(not(windows))]
+    let (elevation_agent, elevation_ready, elevation_status) = {
+        let agent = find_polkit_auth_agent();
+        let ready = agent
+            .as_ref()
+            .map(|p| is_file_executable(p))
+            .unwrap_or(false);
+        let status = if ready {
+            "Polkit agent present. Elevation deferred until operation is requested.".to_string()
+        } else {
+            "No usable polkit authentication agent detected at startup.".to_string()
+        };
+        (agent, ready, status)
+    };
+
+    let litho_spawn_preview = match sidecar {
+        Some(path) => litho_spawn_preview(path, is_elevated),
+        None => litho_spawn_preview_unresolved(is_elevated),
     };
 
     StartupDiagnostics {
+        platform,
         desktop_environment,
         current_user,
-        is_root,
-        polkit_agent_path,
-        polkit_agent_is_executable,
-        polkit_status,
+        is_elevated,
+        elevation_method,
+        elevation_agent: elevation_agent.clone(),
+        elevation_ready,
+        elevation_status: elevation_status.clone(),
+        spawn_mode,
+        litho_spawn_preview,
+        is_root: is_elevated,
+        polkit_agent_path: elevation_agent,
+        polkit_agent_is_executable: elevation_ready,
+        polkit_status: elevation_status,
+    }
+}
+
+fn perform_startup_checks() -> StartupDiagnostics {
+    perform_startup_checks_with_sidecar(None)
+}
+
+fn log_startup_report(diag: &StartupDiagnostics, sidecar: &Result<std::path::PathBuf, String>) {
+    println!("=== Lithographer Startup Checks ===");
+    println!("Platform            : {}", diag.platform);
+    println!("Environment         : {}", diag.desktop_environment);
+    println!("Current user        : {}", diag.current_user);
+    println!("Elevated            : {}", diag.is_elevated);
+    println!("Elevation method    : {}", diag.elevation_method);
+    println!("Elevation ready     : {}", diag.elevation_ready);
+    if let Some(ref agent) = diag.elevation_agent {
+        println!("Elevation agent     : {}", agent);
+    } else {
+        println!("Elevation agent     : NOT FOUND");
+    }
+    println!("Elevation status    : {}", diag.elevation_status);
+    println!("Litho spawn mode    : {}", diag.spawn_mode);
+    println!("Litho command       : {}", diag.litho_spawn_preview);
+    println!("=====================================");
+
+    let launch = parse_launch_args();
+    println!(
+        "Launch params       : mode={:?}, device={:?}, image={:?}",
+        launch.mode, launch.device, launch.image
+    );
+
+    println!("--- Querying storage devices ---");
+    match query_storage_devices() {
+        Ok(devs) => {
+            println!("Found {} storage device(s):", devs.len());
+            for d in &devs {
+                let kind = if d.removable { "removable" } else { "fixed" };
+                println!("  {}  ({} • {})", d.path, d.size, kind);
+            }
+        }
+        Err(e) => {
+            println!("Storage device query failed: {}", e);
+        }
+    }
+    println!("--------------------------------");
+
+    if diag.is_elevated {
+        #[cfg(windows)]
+        println!("Note: App is running elevated. Litho sidecar will be spawned directly.");
+        #[cfg(not(windows))]
+        println!("Note: App is running as root. Litho sidecar will be spawned directly.");
+    } else if !diag.elevation_ready {
+        #[cfg(windows)]
+        eprintln!("WARNING: Administrator elevation (UAC) is not available.");
+        #[cfg(not(windows))]
+        {
+            eprintln!("WARNING: No usable polkit authentication agent found.");
+            eprintln!("   GUI privilege escalation (for writing to devices) may not work.");
+            eprintln!("   Install the polkit agent for your desktop environment.");
+        }
+    } else {
+        #[cfg(windows)]
+        println!("UAC looks ready. Litho will prompt for administrator approval per operation.");
+        #[cfg(not(windows))]
+        println!("Polkit agent looks ready for privilege escalation requests.");
+    }
+
+    match sidecar {
+        Ok(path) => println!("Litho sidecar path    : {}", path.display()),
+        Err(err) => eprintln!("Litho sidecar missing : {err}"),
     }
 }
 
 #[tauri::command]
-fn get_startup_diagnostics() -> StartupDiagnostics {
-    perform_startup_checks()
+fn get_startup_diagnostics(app: tauri::AppHandle) -> StartupDiagnostics {
+    let sidecar = litho_sidecar::resolve_litho_binary(&app).ok();
+    perform_startup_checks_with_sidecar(sidecar.as_ref().map(|p| p.as_path()))
 }
 
 /// Spawn the litho CLI sidecar (via pkexec when not root) and stream GUI protocol
@@ -279,14 +449,23 @@ fn start_litho_operation(
 ) -> Result<(), String> {
     let diag = perform_startup_checks();
     if !diag.is_root && !diag.polkit_agent_is_executable {
+        #[cfg(windows)]
+        return Err("Administrator elevation (UAC) is not available on this system.".to_string());
+        #[cfg(not(windows))]
         return Err(
             "No polkit authentication agent found. Start your desktop polkit agent.".to_string(),
         );
     }
 
-    let known_devices = query_storage_devices()?;
-    let known_paths: Vec<String> = known_devices.iter().map(|d| d.path.clone()).collect();
-    litho_devices::validate_listed_block_device(&device, &known_paths)?;
+    let launch = parse_launch_args();
+    if launch.auto_run {
+        // UAC handoff replays the same device path; WMI may enumerate slightly later.
+        litho_devices::validate_device_safe_for_io(&device)?;
+    } else {
+        let known_devices = query_storage_devices()?;
+        let known_paths: Vec<String> = known_devices.iter().map(|d| d.path.clone()).collect();
+        litho_devices::validate_listed_block_device(&device, &known_paths)?;
+    }
 
     let io_block_size = block_size
         .unwrap_or_else(|| litho_devices::optimal_io_block_size(&device));
@@ -465,59 +644,10 @@ pub fn run() {
             get_litho_sidecar_path
         ])
         .setup(|_app| {
-            let diag = perform_startup_checks();
-
-            println!("=== Lithographer Startup Checks ===");
-            println!("Desktop Environment : {}", diag.desktop_environment);
-            println!("Current User        : {}", diag.current_user);
-            println!("Running as root     : {}", diag.is_root);
-            println!("Polkit status       : {}", diag.polkit_status);
-            if let Some(ref agent) = diag.polkit_agent_path {
-                println!("Polkit auth agent   : {}", agent);
-                println!("Agent executable    : {}", diag.polkit_agent_is_executable);
-            } else {
-                println!("Polkit auth agent   : NOT FOUND");
-            }
-
-            println!("=====================================");
-
-            // Launch parameters (from CLI args) for pre-populating the form
-            let launch = parse_launch_args();
-            println!("Launch params       : mode={:?}, device={:?}, image={:?}", launch.mode, launch.device, launch.image);
-
-            // Privileged flash/clone runs via the litho CLI sidecar (`start_litho_operation`).
-
-            // After startup diagnostics, query storage devices using the Rust API directly
-            // (imported liblitho::devices::get_storage_devices).
-            println!("--- Querying storage devices ---");
-            match query_storage_devices() {
-                Ok(devs) => {
-                    println!("Found {} storage device(s):", devs.len());
-                    for d in &devs {
-                        let kind = if d.removable { "removable" } else { "fixed" };
-                        println!("  {}  ({} • {})", d.path, d.size, kind);
-                    }
-                }
-                Err(e) => {
-                    println!("Storage device query failed: {}", e);
-                }
-            }
-            println!("--------------------------------");
-
-            if diag.is_root {
-                println!("Note: App is running as root. Most privileged operations will work directly.");
-            } else if diag.polkit_agent_path.is_none() || !diag.polkit_agent_is_executable {
-                eprintln!("⚠️  WARNING: No usable polkit authentication agent found.");
-                eprintln!("   GUI privilege escalation (for writing to devices) may not work.");
-                eprintln!("   Consider installing the appropriate polkit agent for your desktop environment.");
-            } else {
-                println!("Polkit agent looks ready for privilege escalation requests.");
-            }
-
-            match litho_sidecar::resolve_litho_binary(_app.handle()) {
-                Ok(path) => println!("Litho sidecar         : {}", path.display()),
-                Err(e) => eprintln!("⚠️  Litho sidecar missing: {e}"),
-            }
+            let sidecar = litho_sidecar::resolve_litho_binary(_app.handle());
+            let diag =
+                perform_startup_checks_with_sidecar(sidecar.as_ref().ok().map(|p| p.as_path()));
+            log_startup_report(&diag, &sidecar);
 
             Ok(())
         })

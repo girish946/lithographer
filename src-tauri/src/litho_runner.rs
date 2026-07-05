@@ -1,6 +1,6 @@
 use crate::litho_output::{parse_litho_line, LithoUiEvent};
 use crate::litho_sidecar::resolve_litho_binary;
-use crate::is_running_as_root;
+use crate::privilege::{has_privileged_access, spawn_mode};
 use liblitho::cancel::{create_cancel_file, remove_cancel_file, request_cancel_via_file};
 use liblitho::devices::validate_device_safe_for_io;
 use liblitho::progress::STDIN_CANCEL_LINE;
@@ -12,6 +12,10 @@ use tauri::{AppHandle, Emitter};
 
 /// Matches `cli_cancel::CANCEL_EXIT_CODE` in the litho CLI.
 const LITHO_CANCEL_EXIT_CODE: i32 = 3;
+
+/// Win32 ERROR_CANCELLED when the user denies a UAC prompt.
+#[cfg(windows)]
+const UAC_CANCELLED_EXIT: i32 = 1223;
 
 pub struct LithoRunnerState {
     pub child: Option<Child>,
@@ -57,11 +61,17 @@ pub fn spawn_litho_operation(
         guard.cancel_requested = false;
     }
 
+    let litho_path = resolve_litho_binary(&app)?;
+    validate_device_safe_for_io(&request.device)?;
+
+    #[cfg(windows)]
+    if !has_privileged_access() {
+        return handoff_to_elevated_lithographer(app, &request);
+    }
+
     let cancel_file = create_cancel_file()
         .map_err(|e| format!("Failed to create cancel flag file: {e}"))?;
 
-    let litho_path = resolve_litho_binary(&app)?;
-    validate_device_safe_for_io(&request.device)?;
     let device = request.device.clone();
     let mode = request.mode.to_lowercase();
     let subcommand = if mode == "clone" || mode == "backup" {
@@ -88,9 +98,25 @@ pub fn spawn_litho_operation(
         litho_args.push("--verify".to_string());
     }
 
-    let mut cmd = if is_running_as_root() {
+    // Windows: litho requires --yes to dismount drive letters on the target disk before raw I/O.
+    #[cfg(windows)]
+    {
+        litho_args.push("--yes".to_string());
+    }
+
+    let mut cmd = if has_privileged_access() {
         let mut c = Command::new(&litho_path);
         c.args(&litho_args);
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            // Console-subsystem litho.exe must not inherit or allocate a visible console;
+            // stdout/stderr are piped into the GUI protocol parser below.
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+            const DETACHED_PROCESS: u32 = 0x0000_0008;
+            detach_parent_console_before_spawn();
+            c.creation_flags(CREATE_NO_WINDOW | DETACHED_PROCESS);
+        }
         c
     } else {
         litho_args.insert(0, litho_path.display().to_string());
@@ -103,21 +129,31 @@ pub fn spawn_litho_operation(
     cmd.stderr(Stdio::piped());
     cmd.stdin(Stdio::piped());
 
+    let launcher = if has_privileged_access() {
+        litho_path.display().to_string()
+    } else {
+        "pkexec".to_string()
+    };
+
     println!(
-        "Spawning litho sidecar (verify={}, cancel_file={}): {} {:?}",
+        "Spawning litho sidecar (mode={}, verify={}, cancel_file={}): {} {:?}",
+        spawn_mode(),
         request.verify,
         cancel_file.display(),
-        if is_running_as_root() {
-            litho_path.display().to_string()
-        } else {
-            "pkexec".to_string()
-        },
+        launcher,
         litho_args
     );
 
-    let mut child = cmd
-        .spawn()
-        .map_err(|e| format!("Failed to spawn litho: {e}. Is pkexec installed?"))?;
+    let mut child = cmd.spawn().map_err(|e| {
+        #[cfg(windows)]
+        {
+            format!("Failed to spawn litho: {e}.")
+        }
+        #[cfg(not(windows))]
+        {
+            format!("Failed to spawn litho: {e}. Is pkexec installed?")
+        }
+    })?;
 
     let stdout = child
         .stdout
@@ -172,27 +208,105 @@ pub fn spawn_litho_operation(
             .as_mut()
             .and_then(|child| child.wait().ok().and_then(|status| status.code()));
 
-        let (cancel_requested, cancel_file) = {
-            let mut guard = match state_wait.lock() {
-                Ok(g) => g,
-                Err(_) => return,
-            };
-            let cancel_requested = guard.cancel_requested;
-            let cancel_file = guard.cancel_file.take();
-            guard.running = false;
-            guard.cancel_requested = false;
-            guard.child_stdin = None;
-            (cancel_requested, cancel_file)
-        };
-
-        if let Some(path) = cancel_file {
-            remove_cancel_file(&path);
-        }
-
-        emit_completion_event(&app_wait, exit_code, cancel_requested);
+        finish_litho_operation(&app_wait, &state_wait, exit_code);
     });
 
     Ok(())
+}
+
+#[cfg(windows)]
+fn lithographer_elevation_cli_args(request: &LithoRunRequest) -> Vec<String> {
+    let mut args = vec![
+        "--mode".to_string(),
+        request.mode.clone(),
+        "--device".to_string(),
+        request.device.clone(),
+        "--image".to_string(),
+        request.image.clone(),
+        "--block-size".to_string(),
+        request.block_size.to_string(),
+        "--auto-run".to_string(),
+    ];
+    if request.verify {
+        args.push("--verify".to_string());
+    }
+    args
+}
+
+/// Drop an inherited debug/dev console so a console-subsystem litho child cannot write
+/// progress to a stray terminal instead of our stdout pipe.
+#[cfg(windows)]
+fn detach_parent_console_before_spawn() {
+    use winapi::um::wincon::{FreeConsole, GetConsoleWindow};
+    use winapi::um::winuser::ShowWindow;
+    use winapi::um::winuser::SW_HIDE;
+
+    unsafe {
+        let hwnd = GetConsoleWindow();
+        if !hwnd.is_null() {
+            ShowWindow(hwnd, SW_HIDE);
+        }
+        let _ = FreeConsole();
+    }
+}
+
+/// UAC cannot pipe stdout from an elevated litho child. Relaunch Lithographer elevated
+/// so litho runs as a normal piped subprocess in the elevated GUI session.
+#[cfg(windows)]
+fn handoff_to_elevated_lithographer(app: AppHandle, request: &LithoRunRequest) -> Result<(), String> {
+    let args = lithographer_elevation_cli_args(request);
+    println!(
+        "Handing off to elevated Lithographer (mode=uac-relaunch): {:?}",
+        args
+    );
+
+    crate::privilege::relaunch_elevated_lithographer(&args).map_err(|message| {
+        let _ = app.emit(
+            "litho-event",
+            LithoUiEvent::Error { message: message.clone() },
+        );
+        message
+    })?;
+
+    let _ = app.emit(
+        "litho-event",
+        LithoUiEvent::Status {
+            phase: Some("preparing".to_string()),
+            message: Some(
+                "Approve UAC to open an elevated Lithographer window. Progress will stream there."
+                    .to_string(),
+            ),
+        },
+    );
+
+    std::thread::spawn(|| {
+        std::thread::sleep(std::time::Duration::from_millis(600));
+        std::process::exit(0);
+    });
+
+    Ok(())
+}
+
+fn finish_litho_operation(app: &AppHandle, state: &SharedLithoRunner, exit_code: Option<i32>) {
+    let (cancel_requested, cancel_file) = {
+        let mut guard = match state.lock() {
+            Ok(g) => g,
+            Err(_) => return,
+        };
+        let cancel_requested = guard.cancel_requested;
+        let cancel_file = guard.cancel_file.take();
+        guard.running = false;
+        guard.cancel_requested = false;
+        guard.child_stdin = None;
+        guard.child = None;
+        (cancel_requested, cancel_file)
+    };
+
+    if let Some(path) = cancel_file {
+        remove_cancel_file(&path);
+    }
+
+    emit_completion_event(app, exit_code, cancel_requested);
 }
 
 pub fn cancel_litho_operation(state: &SharedLithoRunner) -> Result<(), String> {
@@ -240,25 +354,17 @@ fn emit_completion_event(app: &AppHandle, exit_code: Option<i32>, cancel_request
             );
         }
         Some(126) => {
-            let _ = app.emit(
-                "litho-event",
-                LithoUiEvent::Error {
-                    message: "Authentication was cancelled or denied.".to_string(),
-                },
-            );
-            let _ = app.emit(
-                "litho-event",
-                LithoUiEvent::Done {
-                    success: false,
-                    cancelled: false,
-                },
-            );
+            emit_auth_denied(app);
+        }
+        #[cfg(windows)]
+        Some(UAC_CANCELLED_EXIT) => {
+            emit_auth_denied(app);
         }
         Some(code) => {
             let _ = app.emit(
                 "litho-event",
                 LithoUiEvent::Error {
-                    message: format!("litho exited with code {code}"),
+                    message: litho_exit_message(code),
                 },
             );
             let _ = app.emit(
@@ -285,6 +391,44 @@ fn emit_completion_event(app: &AppHandle, exit_code: Option<i32>, cancel_request
             );
         }
     }
+}
+
+fn litho_exit_message(code: i32) -> String {
+    #[cfg(windows)]
+    {
+        return match code {
+            1 => "Flash/clone failed. The disk may be in use (close File Explorer on that drive), \
+                  or access was denied. Run Lithographer from a console (or set LITHOGRAPHER_CONSOLE=1) \
+                  for litho error details."
+                .to_string(),
+            5 => "Flash/clone failed: access denied. Close programs using the target disk and retry."
+                .to_string(),
+            _ => format!(
+                "litho exited with code {code}. Run from a console for detailed litho output."
+            ),
+        };
+    }
+
+    #[cfg(not(windows))]
+    {
+        format!("litho exited with code {code}")
+    }
+}
+
+fn emit_auth_denied(app: &AppHandle) {
+    let _ = app.emit(
+        "litho-event",
+        LithoUiEvent::Error {
+            message: "Authentication was cancelled or denied.".to_string(),
+        },
+    );
+    let _ = app.emit(
+        "litho-event",
+        LithoUiEvent::Done {
+            success: false,
+            cancelled: false,
+        },
+    );
 }
 
 fn emit_parsed_line(app: &AppHandle, stream: &str, line: &str) {

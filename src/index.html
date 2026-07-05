@@ -513,6 +513,8 @@
         let isRunning = false;
         let cancelPending = false;
         let lithoEventUnlisten = null;
+        let lastLithoError = null;
+        let launchBlockSize = null;
         let pendingFixedDevice = null;
         const THEME_STORAGE_KEY = "lithographer-theme";
         let fitWindowRaf = null;
@@ -825,6 +827,7 @@
             const styles = {
                 root: "flex items-center gap-x-2 px-3.5 py-1.5 bg-emerald-500/10 text-emerald-400 border-emerald-400/30 rounded-2xl",
                 polkit: "flex items-center gap-x-2 px-3.5 py-1.5 bg-sky-500/10 text-sky-400 border-sky-400/30 rounded-2xl",
+                uac: "flex items-center gap-x-2 px-3.5 py-1.5 bg-sky-500/10 text-sky-400 border-sky-400/30 rounded-2xl",
                 unprivileged: "flex items-center gap-x-2 px-3.5 py-1.5 bg-amber-500/10 text-amber-400 border-amber-400/30 rounded-2xl",
                 unknown: "flex items-center gap-x-2 px-3.5 py-1.5 bg-[var(--badge-unknown-bg)] text-[var(--badge-unknown-text)] border-[var(--badge-unknown-border)] rounded-2xl",
             };
@@ -832,6 +835,7 @@
             const icons = {
                 root: "fa-solid fa-user-shield",
                 polkit: "fa-solid fa-key",
+                uac: "fa-solid fa-shield-halved",
                 unprivileged: "fa-solid fa-shield-halved",
                 unknown: "fa-solid fa-circle-question",
             };
@@ -845,14 +849,43 @@
         async function loadPrivilegeStatus() {
             try {
                 const diag = await tauriInvoke("get_startup_diagnostics");
+                const elevated = diag.is_elevated ?? diag.is_root;
+                const ready = diag.elevation_ready ?? diag.polkit_agent_is_executable;
+                const status = diag.elevation_status || diag.polkit_status || "";
+                const spawnHint = diag.litho_spawn_preview
+                    ? `${status}\n\nCommand: ${diag.litho_spawn_preview}`
+                    : status;
+                const isWindows = diag.platform === "windows";
 
-                if (diag.is_root) {
-                    applyPrivilegeBadge("root", "Privileged", "Running as root. No password prompt needed.");
-                } else if (diag.polkit_agent_is_executable) {
-                    applyPrivilegeBadge("polkit", "Polkit available", "Will prompt for administrator password.");
+                if (elevated) {
+                    const label = isWindows ? "Administrator" : "Privileged";
+                    const title = isWindows
+                        ? "Running elevated. Litho sidecar will be spawned directly."
+                        : "Running as root. No password prompt needed.";
+                    applyPrivilegeBadge("root", label, title);
+                } else if (ready) {
+                    if (isWindows) {
+                        applyPrivilegeBadge(
+                            "uac",
+                            "UAC available",
+                            spawnHint || "Litho will request administrator approval via UAC."
+                        );
+                    } else {
+                        applyPrivilegeBadge(
+                            "polkit",
+                            "Polkit available",
+                            spawnHint || "Will prompt for administrator password."
+                        );
+                    }
                 } else {
-                    applyPrivilegeBadge("unprivileged", "Unprivileged", "No polkit agent detected. Use sudo.");
+                    const label = isWindows ? "Unprivileged" : "Unprivileged";
+                    const title = isWindows
+                        ? "Administrator elevation is not available."
+                        : "No polkit agent detected. Use sudo.";
+                    applyPrivilegeBadge("unprivileged", label, title);
                 }
+
+                console.log("Startup diagnostics:", diag);
             } catch (err) {
                 console.warn("Failed to load privilege status:", err);
                 applyPrivilegeBadge("unknown", "Unknown", "Could not determine privilege status.");
@@ -961,15 +994,19 @@
                     break;
                 }
                 case "error":
-                    setOperationStatus("ERROR", "bg-red-500/10 text-red-500", payload.message || "Operation failed.");
+                    lastLithoError = payload.message || null;
+                    setOperationStatus("ERROR", "bg-red-500/10 text-red-500", lastLithoError || "Operation failed.");
                     break;
                 case "done":
                     if (payload.success) {
+                        lastLithoError = null;
                         finishProcess();
                     } else if (payload.cancelled) {
+                        lastLithoError = null;
                         finishCancelledProcess("Operation cancelled by user.");
                     } else {
-                        failProcess(payload.message || "Operation failed.");
+                        failProcess(payload.message || lastLithoError || "Operation failed.");
+                        lastLithoError = null;
                     }
                     break;
                 case "raw":
@@ -1012,13 +1049,17 @@
             );
 
             try {
-                await tauriInvoke("start_litho_operation", {
+                const payload = {
                     mode: selectedMode,
                     device: selectedDevice.path,
                     image: selectedFile.path,
                     verify: selectedMode === "flash" && document.getElementById("verify-checkbox").checked,
-                });
-                setOperationStatus("IN PROGRESS", "bg-amber-500/10 text-amber-500", "Waiting for litho sidecar…");
+                };
+                if (launchBlockSize) {
+                    payload.block_size = launchBlockSize;
+                }
+                await tauriInvoke("start_litho_operation", payload);
+                setOperationStatus("IN PROGRESS", "bg-amber-500/10 text-amber-500", "Waiting for litho progress stream…");
             } catch (err) {
                 console.error("Failed to start litho operation:", err);
                 const message = err && err.message ? err.message : String(err);
@@ -1196,8 +1237,42 @@
                 if (params.image) {
                     setSelectedFile(params.image);
                 }
+
+                if (params.verify && selectedMode === "flash") {
+                    const checkbox = document.getElementById("verify-checkbox");
+                    if (checkbox) checkbox.checked = true;
+                }
+
+                if (typeof params.block_size === "number" && params.block_size > 0) {
+                    launchBlockSize = params.block_size;
+                }
             } catch (err) {
                 console.warn("Failed to read/apply launch params:", err);
+            }
+        }
+
+        async function maybeAutoStartFromLaunchParams() {
+            try {
+                const params = await tauriInvoke("get_launch_params");
+                if (!params.auto_run || !params.mode || !params.device || !params.image) {
+                    return;
+                }
+
+                const diag = await tauriInvoke("get_startup_diagnostics");
+                const elevated = diag.is_elevated ?? diag.is_root;
+                if (!elevated) {
+                    console.warn("auto-run requested but process is not elevated");
+                    return;
+                }
+
+                setOperationStatus(
+                    "STARTING",
+                    "bg-amber-500/10 text-amber-500",
+                    "Continuing after UAC elevation…"
+                );
+                await startProcess();
+            } catch (err) {
+                console.warn("Failed to auto-start from launch params:", err);
             }
         }
 
@@ -1234,9 +1309,10 @@
             console.log("%c[Lithographer] Polished Oat-ready UI loaded", "color:#22d3ee; font-family:monospace");
 
             loadPrivilegeStatus();
+            await ensureLithoEventListener();
             await loadStorageDevices();
             await applyLaunchParamsIfAny();
-            ensureLithoEventListener();
+            await maybeAutoStartFromLaunchParams();
             initWindowFit();
         };
     </script>

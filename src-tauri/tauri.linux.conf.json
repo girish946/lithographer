@@ -1,0 +1,16 @@
+{
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "lithographer",
+        "width": 920,
+        "height": 720,
+        "minWidth": 300,
+        "minHeight": 360,
+        "resizable": true,
+        "decorations": false
+      }
+    ]
+  }
+}
