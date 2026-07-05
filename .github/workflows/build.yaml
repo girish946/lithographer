@@ -77,34 +77,36 @@ jobs:
         shell: bash
         run: git clone --depth 1 --branch "${{ env.LITHO_BRANCH }}" "${{ env.LITHO_REPO }}" ../litho
 
-      # litho links openssl-sys; the "light" Chocolatey package has no lib/ headers.
-      - name: Install OpenSSL (Windows)
-        shell: cmd
-        run: choco install openssl -y --no-progress
-
-      - name: Configure OpenSSL for openssl-sys
+      # windows-latest ships OpenSSL at C:\Program Files\OpenSSL (see actions/runner-images Install-OpenSSL.ps1).
+      # openssl-sys needs OPENSSL_* pointing at the MSVC import libs (lib\VC\x64\MD\), not lib\ alone.
+      - name: Configure pre-installed OpenSSL for openssl-sys
         shell: pwsh
         run: |
-          $candidates = @(
-            'C:\Program Files\OpenSSL-Win64',
-            'C:\Program Files\OpenSSL'
-          )
-          $opensslDir = $null
-          foreach ($dir in $candidates) {
-            if ((Test-Path "$dir\lib") -and (Test-Path "$dir\include")) {
-              $opensslDir = $dir
-              break
-            }
-          }
-          if (-not $opensslDir) {
-            Write-Error "OpenSSL development files (lib/, include/) not found after choco install."
-            Get-ChildItem 'C:\Program Files' | Where-Object { $_.Name -like '*OpenSSL*' }
+          $opensslDir = 'C:\Program Files\OpenSSL'
+          if (-not (Test-Path $opensslDir)) {
+            Write-Error "Pre-installed OpenSSL not found at $opensslDir"
             exit 1
           }
-          Write-Host "Using OpenSSL at $opensslDir"
+
+          $libMatch = Get-ChildItem -Path $opensslDir -Recurse -Filter 'libcrypto.lib' -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $libMatch) {
+            Write-Error "libcrypto.lib not found under $opensslDir"
+            exit 1
+          }
+          $libDir = $libMatch.DirectoryName
+
+          $includeDir = Join-Path $opensslDir 'include'
+          if (-not (Test-Path $includeDir)) {
+            Write-Error "OpenSSL include dir not found at $includeDir"
+            exit 1
+          }
+
+          Write-Host "OPENSSL_DIR=$opensslDir"
+          Write-Host "OPENSSL_LIB_DIR=$libDir"
+          Write-Host "OPENSSL_INCLUDE_DIR=$includeDir"
           Add-Content -Path $env:GITHUB_ENV -Value "OPENSSL_DIR=$opensslDir"
-          Add-Content -Path $env:GITHUB_ENV -Value "OPENSSL_LIB_DIR=$opensslDir\lib"
-          Add-Content -Path $env:GITHUB_ENV -Value "OPENSSL_INCLUDE_DIR=$opensslDir\include"
+          Add-Content -Path $env:GITHUB_ENV -Value "OPENSSL_LIB_DIR=$libDir"
+          Add-Content -Path $env:GITHUB_ENV -Value "OPENSSL_INCLUDE_DIR=$includeDir"
 
       - name: setup node
         uses: actions/setup-node@v4
