@@ -108,6 +108,23 @@ jobs:
           Add-Content -Path $env:GITHUB_ENV -Value "OPENSSL_LIB_DIR=$libDir"
           Add-Content -Path $env:GITHUB_ENV -Value "OPENSSL_INCLUDE_DIR=$includeDir"
 
+      # windows-latest ships vcpkg at C:\vcpkg (VCPKG_INSTALLATION_ROOT). rust-lzma needs VCPKG_ROOT
+      # and the liblzma port installed (find_package does not auto-install).
+      - name: Configure pre-installed vcpkg for rust-lzma
+        shell: pwsh
+        run: |
+          $vcpkgRoot = 'C:\vcpkg'
+          $vcpkgExe = Join-Path $vcpkgRoot 'vcpkg.exe'
+          if (-not (Test-Path $vcpkgExe)) {
+            Write-Error "Pre-installed vcpkg not found at $vcpkgExe"
+            exit 1
+          }
+          Write-Host "Installing liblzma via $vcpkgExe ..."
+          & $vcpkgExe install liblzma:x64-windows
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Add-Content -Path $env:GITHUB_ENV -Value "VCPKG_ROOT=$vcpkgRoot"
+          Add-Content -Path $env:GITHUB_ENV -Value "VCPKGRS_DYNAMIC=1"
+
       - name: setup node
         uses: actions/setup-node@v4
         with:
