@@ -74,9 +74,34 @@ jobs:
         shell: bash
         run: git clone --depth 1 --branch "${{ env.LITHO_BRANCH }}" "${{ env.LITHO_REPO }}" ../litho
 
+      # litho links openssl-sys; the "light" Chocolatey package has no lib/ headers.
       - name: Install OpenSSL (Windows)
         shell: cmd
-        run: choco install openssl.light -y --no-progress
+        run: choco install openssl -y --no-progress
+
+      - name: Configure OpenSSL for openssl-sys
+        shell: pwsh
+        run: |
+          $candidates = @(
+            'C:\Program Files\OpenSSL-Win64',
+            'C:\Program Files\OpenSSL'
+          )
+          $opensslDir = $null
+          foreach ($dir in $candidates) {
+            if ((Test-Path "$dir\lib") -and (Test-Path "$dir\include")) {
+              $opensslDir = $dir
+              break
+            }
+          }
+          if (-not $opensslDir) {
+            Write-Error "OpenSSL development files (lib/, include/) not found after choco install."
+            Get-ChildItem 'C:\Program Files' | Where-Object { $_.Name -like '*OpenSSL*' }
+            exit 1
+          }
+          Write-Host "Using OpenSSL at $opensslDir"
+          Add-Content -Path $env:GITHUB_ENV -Value "OPENSSL_DIR=$opensslDir"
+          Add-Content -Path $env:GITHUB_ENV -Value "OPENSSL_LIB_DIR=$opensslDir\lib"
+          Add-Content -Path $env:GITHUB_ENV -Value "OPENSSL_INCLUDE_DIR=$opensslDir\include"
 
       - name: setup node
         uses: actions/setup-node@v4
@@ -102,9 +127,6 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OPENSSL_DIR: C:\Program Files\OpenSSL-Win64
-          OPENSSL_LIB_DIR: C:\Program Files\OpenSSL-Win64\lib
-          OPENSSL_INCLUDE_DIR: C:\Program Files\OpenSSL-Win64\include
         with:
           tauriScript: powershell -ExecutionPolicy Bypass -File scripts/tauri-build.ps1
 
