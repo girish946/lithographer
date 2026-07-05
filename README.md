@@ -3,7 +3,7 @@
 GUI for [litho](https://github.com/girish946/litho) — flash disk images and clone block devices with a native desktop app built on [Tauri 2](https://tauri.app/).
 
 <p align="center">
-<img src="src/assets/logo.png" alt="Lithographer logo">
+<img src="src/assets/lithographer-banner-dark.jpg" alt="Lithographer logo">
 </p>
 
 Lithographer stays **unprivileged**. Device enumeration and validation run in-process via `liblitho`; privileged flash/clone work is delegated to a bundled **`litho` sidecar** that speaks a line-oriented GUI protocol on stdout.
