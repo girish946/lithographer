@@ -886,7 +886,7 @@
                     const label = isWindows ? "Unprivileged" : "Unprivileged";
                     const title = isWindows
                         ? "Administrator elevation is not available."
-                        : "No polkit agent detected. Use sudo.";
+                        : "No elevation backend ready. Try LITHOGRAPHER_ELEVATION=pkexec (GNOME) or =sudo, or run with sudo.";
                     applyPrivilegeBadge("unprivileged", label, title);
                 }
 

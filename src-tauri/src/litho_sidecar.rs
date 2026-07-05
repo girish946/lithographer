@@ -1,7 +1,47 @@
 #[cfg(unix)]
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
 use tauri::{AppHandle, Manager};
+
+/// Path to a litho copy staged outside the AppImage FUSE mount for pkexec/sudo.
+static STAGED_LITHO: OnceLock<Mutex<Option<PathBuf>>> = OnceLock::new();
+
+fn staged_litho_slot() -> &'static Mutex<Option<PathBuf>> {
+    STAGED_LITHO.get_or_init(|| Mutex::new(None))
+}
+
+/// Remove temporary artifacts created for privileged litho launch (AppImage staging, askpass helpers).
+pub fn cleanup_staged_litho() {
+    #[cfg(unix)]
+    {
+        let path = staged_litho_slot()
+            .lock()
+            .ok()
+            .and_then(|mut guard| guard.take());
+        if let Some(path) = path {
+            if is_staged_litho_path(&path) {
+                let _ = fs::remove_file(&path);
+            }
+        }
+
+        let zenity_helper = std::env::temp_dir().join(format!(
+            "lithographer-zenity-askpass-{}",
+            std::process::id()
+        ));
+        if zenity_helper.is_file() {
+            let _ = fs::remove_file(zenity_helper);
+        }
+    }
+}
+
+#[cfg(unix)]
+fn is_staged_litho_path(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .map(|name| name.starts_with("lithographer-litho-"))
+        .unwrap_or(false)
+}
 
 /// Resolve the litho CLI binary for dev builds and bundled sidecar installs.
 pub fn resolve_litho_binary(app: &AppHandle) -> Result<PathBuf, String> {
@@ -149,6 +189,9 @@ fn prepare_for_pkexec(path: &Path) -> Result<PathBuf, String> {
             perms.set_mode(0o755);
             let _ = fs::set_permissions(&dest, perms);
         }
+    }
+    if let Ok(mut guard) = staged_litho_slot().lock() {
+        *guard = Some(dest.clone());
     }
     Ok(dest)
 }

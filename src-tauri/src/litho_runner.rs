@@ -1,6 +1,8 @@
 use crate::litho_output::{parse_litho_line, LithoUiEvent};
 use crate::litho_sidecar::resolve_litho_binary;
-use crate::privilege::{has_privileged_access, spawn_mode};
+#[cfg(target_os = "linux")]
+use crate::privilege::build_elevated_litho_command;
+use crate::privilege::{elevation_method, has_privileged_access, spawn_mode};
 use liblitho::cancel::{create_cancel_file, remove_cancel_file, request_cancel_via_file};
 use liblitho::devices::validate_device_safe_for_io;
 use liblitho::progress::STDIN_CANCEL_LINE;
@@ -119,10 +121,14 @@ pub fn spawn_litho_operation(
         }
         c
     } else {
-        litho_args.insert(0, litho_path.display().to_string());
-        let mut c = Command::new("pkexec");
-        c.args(&litho_args);
-        c
+        #[cfg(target_os = "linux")]
+        {
+            build_elevated_litho_command(&litho_path, &litho_args)?
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            return Err("Privileged flash/clone is not supported on this platform.".into());
+        }
     };
 
     cmd.stdout(Stdio::piped());
@@ -132,7 +138,7 @@ pub fn spawn_litho_operation(
     let launcher = if has_privileged_access() {
         litho_path.display().to_string()
     } else {
-        "pkexec".to_string()
+        elevation_method()
     };
 
     println!(

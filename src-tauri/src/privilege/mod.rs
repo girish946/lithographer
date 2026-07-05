@@ -20,31 +20,38 @@ pub fn has_privileged_access() -> bool {
 }
 
 /// Short elevation backend label for logs and diagnostics.
-pub fn elevation_method() -> &'static str {
+pub fn elevation_method() -> String {
     #[cfg(target_os = "linux")]
     {
-        "pkexec"
+        linux::elevation_backend_label(linux::elevation_backend()).to_string()
     }
     #[cfg(windows)]
     {
-        "uac"
+        "uac".to_string()
     }
     #[cfg(not(any(target_os = "linux", windows)))]
     {
-        "unsupported"
+        "unsupported".to_string()
     }
 }
 
+#[cfg(target_os = "linux")]
+pub use linux::build_elevated_litho_command;
+
 /// How litho will be launched for the next privileged operation.
-pub fn spawn_mode() -> &'static str {
+pub fn spawn_mode() -> String {
     if has_privileged_access() {
-        "direct"
+        "direct".to_string()
     } else {
         #[cfg(windows)]
         {
-            "uac-relaunch"
+            "uac-relaunch".to_string()
         }
-        #[cfg(not(windows))]
+        #[cfg(target_os = "linux")]
+        {
+            linux::elevation_backend_label(linux::elevation_backend()).to_string()
+        }
+        #[cfg(not(any(windows, target_os = "linux")))]
         {
             elevation_method()
         }
@@ -67,6 +74,22 @@ pub fn platform_environment() -> String {
     #[cfg(not(any(windows, target_os = "linux")))]
     {
         "unknown".to_string()
+    }
+}
+
+/// Human-readable elevation agent (polkit agent path or gnome-shell hint).
+pub fn elevation_agent_description() -> Option<String> {
+    #[cfg(target_os = "linux")]
+    {
+        linux::elevation_agent_description()
+    }
+    #[cfg(windows)]
+    {
+        Some("UAC (User Account Control)".to_string())
+    }
+    #[cfg(not(any(target_os = "linux", windows)))]
+    {
+        None
     }
 }
 

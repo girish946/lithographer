@@ -14,13 +14,9 @@ use litho_runner::{
     LithoRunnerState, SharedLithoRunner,
 };
 
-use std::fs;
 use std::path::Path;
 use std::process::Command;
 use std::sync::{Arc, Mutex};
-
-#[cfg(unix)]
-use std::os::unix::fs::PermissionsExt;
 
 use liblitho::devices::{self as litho_devices, DeviceInfo as LithoDeviceInfo};
 
@@ -150,114 +146,6 @@ pub(crate) fn is_running_as_root() -> bool {
     privilege::has_privileged_access()
 }
 
-fn extract_executable_path_from_ps(line: &str) -> Option<String> {
-    for token in line.split_whitespace() {
-        if token.starts_with('/') && token.contains("polkit") {
-            return Some(token.to_string());
-        }
-    }
-    None
-}
-
-fn find_polkit_auth_agent() -> Option<String> {
-    let user = get_current_user();
-    let de = get_desktop_environment().to_lowercase();
-
-    // 1. Try to detect a running polkit authentication agent for the current user
-    if let Ok(output) = Command::new("ps")
-        .args(["-u", &user, "-o", "pid,comm,args", "--no-headers"])
-        .output()
-    {
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        for line in stdout.lines() {
-            let lower = line.to_lowercase();
-            if lower.contains("polkit") && (lower.contains("agent") || lower.contains("-authentication-agent")) {
-                if let Some(path) = extract_executable_path_from_ps(line) {
-                    if fs::metadata(&path).map(|m| m.is_file()).unwrap_or(false) {
-                        return Some(path);
-                    }
-                }
-            }
-        }
-    }
-
-    // 2. Fallback: known agent locations, prioritized by detected desktop environment
-    let candidates: Vec<&str> = if de.contains("gnome") {
-        vec![
-            "/usr/libexec/polkit-gnome-authentication-agent-1",
-            "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1",
-            "/usr/lib/gnome-polkit/polkit-gnome-authentication-agent-1",
-        ]
-    } else if de.contains("kde") || de.contains("plasma") {
-        vec![
-            "/usr/libexec/polkit-kde-authentication-agent-1",
-            "/usr/lib/polkit-kde-authentication-agent-1",
-            "/usr/lib/x86_64-linux-gnu/libexec/polkit-kde-authentication-agent-1",
-        ]
-    } else if de.contains("xfce") {
-        vec![
-            "/usr/libexec/xfce-polkit",
-            "/usr/lib/xfce4/polkit/xfce-polkit",
-            "/usr/bin/xfce-polkit",
-        ]
-    } else if de.contains("mate") {
-        vec![
-            "/usr/libexec/polkit-mate-authentication-agent-1",
-            "/usr/lib/mate-polkit/polkit-mate-authentication-agent-1",
-        ]
-    } else if de.contains("lx") || de.contains("lxd") || de.contains("lubuntu") {
-        vec![
-            "/usr/bin/lxpolkit",
-            "/usr/libexec/lxpolkit",
-            "/usr/lib/lxpolkit/lxpolkit",
-        ]
-    } else if de.contains("cinnamon") {
-        vec![
-            "/usr/libexec/cinnamon-polkit",
-            "/usr/bin/cinnamon-polkit",
-        ]
-    } else {
-        // Broad fallback list for unknown DEs
-        vec![
-            "/usr/libexec/polkit-gnome-authentication-agent-1",
-            "/usr/libexec/polkit-kde-authentication-agent-1",
-            "/usr/libexec/polkit-mate-authentication-agent-1",
-            "/usr/bin/lxpolkit",
-            "/usr/libexec/xfce-polkit",
-        ]
-    };
-
-    for path in candidates {
-        if let Ok(meta) = fs::metadata(path) {
-            if meta.is_file() {
-                return Some(path.to_string());
-            }
-        }
-    }
-
-    None
-}
-
-fn is_file_executable(path: &str) -> bool {
-    match fs::metadata(path) {
-        Ok(meta) => {
-            if !meta.is_file() {
-                return false;
-            }
-            #[cfg(unix)]
-            {
-                let mode = meta.permissions().mode();
-                (mode & 0o111) != 0
-            }
-            #[cfg(not(unix))]
-            {
-                true
-            }
-        }
-        Err(_) => false,
-    }
-}
-
 fn platform_name() -> String {
     if cfg!(windows) {
         "windows".to_string()
@@ -289,7 +177,7 @@ fn litho_spawn_preview(sidecar: &Path, is_elevated: bool) -> String {
 
     #[cfg(not(windows))]
     {
-        format!("pkexec {litho} {args}")
+        format!("{} {litho} {args}", privilege::elevation_method())
     }
 }
 
@@ -302,8 +190,8 @@ fn perform_startup_checks_with_sidecar(sidecar: Option<&Path>) -> StartupDiagnos
     let desktop_environment = privilege::platform_environment();
     let current_user = get_current_user();
     let is_elevated = privilege::has_privileged_access();
-    let elevation_method = privilege::elevation_method().to_string();
-    let spawn_mode = privilege::spawn_mode().to_string();
+    let elevation_method = privilege::elevation_method();
+    let spawn_mode = privilege::spawn_mode();
 
     #[cfg(windows)]
     let (elevation_agent, elevation_ready, elevation_status) = {
@@ -320,15 +208,18 @@ fn perform_startup_checks_with_sidecar(sidecar: Option<&Path>) -> StartupDiagnos
 
     #[cfg(not(windows))]
     let (elevation_agent, elevation_ready, elevation_status) = {
-        let agent = find_polkit_auth_agent();
-        let ready = agent
-            .as_ref()
-            .map(|p| is_file_executable(p))
-            .unwrap_or(false);
+        let agent = privilege::elevation_agent_description();
+        let ready = privilege::elevation_ready();
         let status = if ready {
-            "Polkit agent present. Elevation deferred until operation is requested.".to_string()
+            format!(
+                "Elevation via {} is available. Password/fingerprint prompt when an operation starts.",
+                elevation_method
+            )
         } else {
-            "No usable polkit authentication agent detected at startup.".to_string()
+            format!(
+                "No elevation backend ready. Install polkit (pkexec), run under GNOME, \
+                 or set LITHOGRAPHER_ELEVATION=sudo with SUDO_ASKPASS."
+            )
         };
         (agent, ready, status)
     };
@@ -452,9 +343,12 @@ fn start_litho_operation(
         #[cfg(windows)]
         return Err("Administrator elevation (UAC) is not available on this system.".to_string());
         #[cfg(not(windows))]
-        return Err(
-            "No polkit authentication agent found. Start your desktop polkit agent.".to_string(),
-        );
+        return Err(format!(
+            "Elevation is not available ({}). On Fedora GNOME try LITHOGRAPHER_ELEVATION=pkexec; \
+             if polkit still fails, try LITHOGRAPHER_ELEVATION=sudo with a graphical askpass, \
+             or run: sudo ./lithographer*.AppImage",
+            diag.elevation_method
+        ));
     }
 
     let launch = parse_launch_args();
@@ -651,8 +545,13 @@ pub fn run() {
 
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while running tauri application")
+        .run(|_app_handle, event| {
+            if let tauri::RunEvent::Exit = event {
+                litho_sidecar::cleanup_staged_litho();
+            }
+        });
 }
 
 #[cfg(test)]
