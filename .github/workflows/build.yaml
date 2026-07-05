@@ -119,11 +119,10 @@ jobs:
             Write-Error "Pre-installed vcpkg not found at $vcpkgExe"
             exit 1
           }
-          Write-Host "Installing liblzma via $vcpkgExe ..."
-          & $vcpkgExe install liblzma:x64-windows
+          Write-Host "Installing static liblzma via $vcpkgExe ..."
+          & $vcpkgExe install liblzma:x64-windows-static-md
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Add-Content -Path $env:GITHUB_ENV -Value "VCPKG_ROOT=$vcpkgRoot"
-          Add-Content -Path $env:GITHUB_ENV -Value "VCPKGRS_DYNAMIC=1"
 
       - name: setup node
         uses: actions/setup-node@v4

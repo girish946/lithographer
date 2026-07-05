@@ -8,6 +8,29 @@ $BinDir = Join-Path $Root 'src-tauri\binaries'
 
 New-Item -ItemType Directory -Force -Path $BinDir | Out-Null
 
+function Ensure-StaticLibLzma {
+    $vcpkgRoot = 'C:\vcpkg'
+    $vcpkgExe = Join-Path $vcpkgRoot 'vcpkg.exe'
+    if (-not (Test-Path -LiteralPath $vcpkgExe)) {
+        Write-Error @"
+vcpkg not found at $vcpkgExe.
+Install vcpkg (or use GitHub Actions windows-latest) and run:
+  vcpkg install liblzma:x64-windows-static-md
+"@
+    }
+    $env:VCPKG_ROOT = $vcpkgRoot
+    if (Test-Path Env:VCPKGRS_DYNAMIC) {
+        Remove-Item Env:VCPKGRS_DYNAMIC
+    }
+    Write-Host 'Ensuring static liblzma (x64-windows-static-md) is installed...'
+    & $vcpkgExe install liblzma:x64-windows-static-md
+    if ($LASTEXITCODE -ne 0) {
+        exit $LASTEXITCODE
+    }
+}
+
+Ensure-StaticLibLzma
+
 Write-Host 'Building litho CLI (release, real-io)...'
 Push-Location $LithoDir
 try {
