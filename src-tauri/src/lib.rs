@@ -15,7 +15,6 @@ use litho_runner::{
 };
 
 use std::path::Path;
-use std::process::Command;
 use std::sync::{Arc, Mutex};
 
 use liblitho::devices::{self as litho_devices, DeviceInfo as LithoDeviceInfo};
@@ -220,10 +219,8 @@ fn perform_startup_checks_with_sidecar(sidecar: Option<&Path>) -> StartupDiagnos
                 elevation_method
             )
         } else {
-            format!(
-                "No elevation backend ready. Install polkit (pkexec), run under GNOME, \
-                 or set LITHOGRAPHER_ELEVATION=sudo with SUDO_ASKPASS."
-            )
+            "No elevation backend ready. Install polkit (pkexec), run under GNOME, \
+                 or set LITHOGRAPHER_ELEVATION=sudo with SUDO_ASKPASS.".to_string()
         };
         (agent, ready, status)
     };
@@ -324,7 +321,7 @@ fn log_startup_report(diag: &StartupDiagnostics, sidecar: &Result<std::path::Pat
 #[tauri::command]
 fn get_startup_diagnostics(app: tauri::AppHandle) -> StartupDiagnostics {
     let sidecar = litho_sidecar::resolve_litho_binary(&app).ok();
-    perform_startup_checks_with_sidecar(sidecar.as_ref().map(|p| p.as_path()))
+    perform_startup_checks_with_sidecar(sidecar.as_deref())
 }
 
 /// Spawn the litho CLI sidecar (via pkexec when not root) and stream GUI protocol
@@ -461,7 +458,7 @@ fn query_storage_devices() -> Result<Vec<StorageDeviceInfo>, String> {
 
             let display_name = if !vendor.is_empty() || !model.is_empty() {
                 format!("{} {}", vendor, model).trim().to_string()
-            } else if let Some(basename) = raw.device_name.split('/').last() {
+            } else if let Some(basename) = raw.device_name.split('/').next_back() {
                 basename.to_string()
             } else {
                 "Unknown Device".to_string()

@@ -4,7 +4,6 @@ use crate::litho_sidecar::resolve_litho_binary;
 use crate::privilege::build_elevated_litho_command;
 use crate::privilege::{elevation_method, has_privileged_access, spawn_mode};
 use liblitho::cancel::{create_cancel_file, remove_cancel_file, request_cancel_via_file};
-use liblitho::devices::validate_device_safe_for_io;
 use liblitho::progress::STDIN_CANCEL_LINE;
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
@@ -19,6 +18,7 @@ const LITHO_CANCEL_EXIT_CODE: i32 = 3;
 #[cfg(windows)]
 const UAC_CANCELLED_EXIT: i32 = 1223;
 
+#[derive(Default)]
 pub struct LithoRunnerState {
     pub child: Option<Child>,
     pub child_stdin: Option<ChildStdin>,
@@ -27,17 +27,6 @@ pub struct LithoRunnerState {
     pub cancel_requested: bool,
 }
 
-impl Default for LithoRunnerState {
-    fn default() -> Self {
-        Self {
-            child: None,
-            child_stdin: None,
-            cancel_file: None,
-            running: false,
-            cancel_requested: false,
-        }
-    }
-}
 
 pub type SharedLithoRunner = Arc<Mutex<LithoRunnerState>>;
 

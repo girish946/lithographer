@@ -76,7 +76,7 @@ fn resolve_litho_binary_raw(app: &AppHandle) -> Result<PathBuf, String> {
 }
 
 fn sidecar_filenames(triple: &str) -> Vec<String> {
-    let mut names = vec![format!("litho-{triple}"), "litho".to_string()];
+    let names = vec![format!("litho-{triple}"), "litho".to_string()];
     #[cfg(windows)]
     {
         names.insert(0, format!("litho-{triple}.exe"));
@@ -201,7 +201,7 @@ fn dev_litho_binary() -> Option<PathBuf> {
     let triple = env!("LITHO_TARGET_TRIPLE");
 
     // Prefer release (typically built with real-io for sidecar) over debug (often simulated-io).
-    let mut candidates = vec![
+    let candidates = vec![
         manifest_dir.join(format!("binaries/litho-{triple}")),
         manifest_dir.join("../../litho/target/release/litho"),
         manifest_dir.join("../../litho/target/debug/litho"),

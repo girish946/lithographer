@@ -205,11 +205,10 @@ fn find_polkit_auth_agent() -> Option<String> {
                 && (lower.contains("agent") || lower.contains("-authentication-agent"))
             {
                 for token in line.split_whitespace() {
-                    if token.starts_with('/') && token.contains("polkit") {
-                        if fs::metadata(token).map(|m| m.is_file()).unwrap_or(false) {
+                    if token.starts_with('/') && token.contains("polkit")
+                        && fs::metadata(token).map(|m| m.is_file()).unwrap_or(false) {
                             return Some(token.to_string());
                         }
-                    }
                 }
             }
         }
