@@ -213,12 +213,7 @@ fn dev_litho_binary() -> Option<PathBuf> {
         candidates.insert(2, manifest_dir.join("../../litho/target/debug/litho.exe"));
     }
 
-    for candidate in candidates {
-        if candidate.is_file() {
-            return Some(candidate);
-        }
-    }
-    None
+    candidates.into_iter().find(|candidate| candidate.is_file())
 }
 
 #[cfg(test)]

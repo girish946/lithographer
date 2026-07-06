@@ -347,7 +347,7 @@ fn emit_completion_event(app: &AppHandle, exit_code: Option<i32>, cancel_request
                 },
             );
         }
-        Some(LITHO_CANCEL_EXIT_CODE) | _ if cancel_requested => {
+        code if code == Some(LITHO_CANCEL_EXIT_CODE) || cancel_requested => {
             let _ = app.emit(
                 "litho-event",
                 LithoUiEvent::Done {

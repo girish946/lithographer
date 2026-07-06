@@ -132,22 +132,11 @@ fn get_launch_params() -> LaunchParams {
     parse_launch_args()
 }
 
-fn get_desktop_environment() -> String {
-    std::env::var("XDG_CURRENT_DESKTOP")
-        .or_else(|_| std::env::var("DESKTOP_SESSION"))
-        .or_else(|_| std::env::var("GDMSESSION"))
-        .unwrap_or_else(|_| "unknown".to_string())
-}
-
 fn get_current_user() -> String {
     std::env::var("USER")
         .or_else(|_| std::env::var("LOGNAME"))
         .or_else(|_| std::env::var("USERNAME"))
         .unwrap_or_else(|_| "unknown".to_string())
-}
-
-pub(crate) fn is_running_as_root() -> bool {
-    privilege::has_privileged_access()
 }
 
 fn platform_name() -> String {
@@ -329,6 +318,7 @@ fn get_startup_diagnostics(app: tauri::AppHandle) -> StartupDiagnostics {
 ///
 /// When `block_size` is omitted, picks the largest I/O buffer allowed for the target
 /// device (same table as historical Lithographer `execute` / litho-tui).
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 fn start_litho_operation(
     app: tauri::AppHandle,
@@ -615,7 +605,7 @@ mod tests {
 
     #[test]
     fn test_desktop_env_detection() {
-        let de = get_desktop_environment();
+        let de = privilege::platform_environment();
         println!("Detected desktop environment: {}", de);
         // Should not be empty
         assert!(!de.is_empty());
@@ -623,7 +613,7 @@ mod tests {
 
     #[test]
     fn test_root_detection() {
-        let root = is_running_as_root();
+        let root = privilege::has_privileged_access();
         println!("is_root() = {}", root);
         // In normal test runs we are not root
         // (this is informational)

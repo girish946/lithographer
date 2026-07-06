@@ -88,4 +88,5 @@ fn reopen_std_handle(std_handle: winapi::shared::minwindef::DWORD) {
 }
 
 #[cfg(not(windows))]
+#[allow(dead_code)]
 pub fn ensure() {}
