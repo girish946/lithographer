@@ -93,10 +93,6 @@ cargo build --release --no-default-features --features real-io --bin litho
 | Linux | `src-tauri/target/release/bundle/deb/*.deb`, `rpm/*.rpm` |
 | Windows | `src-tauri/target/release/bundle/msi/*.msi`, `nsis/*.exe` |
 
-### Docker / older glibc (Linux)
-
-From the project root (`litho-proj/`), `make build` uses a Docker image targeting Ubuntu 22.04 for broader glibc compatibility. See the root `Makefile` and `Dockerfile`.
-
 ## Usage
 
 ### Linux
@@ -105,7 +101,7 @@ From the project root (`litho-proj/`), `make build` uses a Docker image targetin
 ./src-tauri/target/release/bundle/appimage/lithographer_0.1.0_amd64.AppImage
 ```
 
-The AppImage includes a post-build Wayland compatibility hook (see [`docs/tauri-2-appimage-wayland-fix.md`](docs/tauri-2-appimage-wayland-fix.md)). On some setups the `.deb` package is more reliable because it uses system WebKitGTK.
+The AppImage includes a post-build Wayland compatibility hook (`src-tauri/scripts/patch-appimage-wayland.sh` injects `src-tauri/appimage/apprun-wayland-compat.sh`). On some setups the `.deb` package is more reliable because it uses system WebKitGTK.
 
 ### Windows
 
@@ -186,7 +182,6 @@ Both jobs clone `litho` from the `windows-implementation` branch.
 ## Related
 
 - [litho](https://github.com/girish946/litho) — CLI, library, and `litho-tui`
-- [Tauri 2 AppImage Wayland fix notes](docs/tauri-2-appimage-wayland-fix.md)
 
 ## License
 
