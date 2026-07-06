@@ -427,9 +427,7 @@ fn map_device_validation_error(err: String) -> String {
         return err;
     }
     if err.contains("system disk") {
-        return format!(
-            "{err} Choose a removable USB drive or another non-system disk."
-        );
+        return format!("{err} Choose a removable USB drive or another non-system disk.");
     }
     err
 }
