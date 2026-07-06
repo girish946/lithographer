@@ -201,7 +201,7 @@ fn dev_litho_binary() -> Option<PathBuf> {
     let triple = env!("LITHO_TARGET_TRIPLE");
 
     // Prefer release (typically built with real-io for sidecar) over debug (often simulated-io).
-    let candidates = vec![
+    let mut candidates = vec![
         manifest_dir.join(format!("binaries/litho-{triple}")),
         manifest_dir.join("../../litho/target/release/litho"),
         manifest_dir.join("../../litho/target/debug/litho"),
