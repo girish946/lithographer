@@ -1,187 +1,147 @@
 # Lithographer
 
-GUI for [litho](https://github.com/girish946/litho) — flash disk images and clone block devices with a native desktop app built on [Tauri 2](https://tauri.app/).
-
 <p align="center">
-<img src="src/assets/lithographer-banner-dark.jpg" alt="Lithographer logo">
+  <img src="src/assets/lithographer-banner-dark.jpg" alt="Lithographer banner" width="720">
 </p>
 
-Lithographer stays **unprivileged**. Device enumeration and validation run in-process via `liblitho`; privileged flash/clone work is delegated to a bundled **`litho` sidecar** that speaks a line-oriented GUI protocol on stdout.
+Desktop app for flashing disk images and cloning block devices. Built with [Tauri 2](https://tauri.app/) on top of the [litho](https://github.com/girish946/litho) engine.
 
-## Features
+Lithographer runs as a **normal user app**. Listing devices and checking safety rules happen in-process; actual flash/clone is done by a bundled **`litho` helper** after you approve elevation (polkit / UAC).
 
-- **Flash** and **clone** with real block I/O (sidecar built with `real-io`)
-- **Device picker** — removable devices listed first; fixed-disk extra confirmation in litho
-- **Native file dialog** — open image for flash, save path for clone (`rfd`)
-- **Optimal I/O block size** — computed from target device capacity (not a fixed 4 KiB)
-- **Optional SHA-256 verify** — checkbox for flash operations (off by default)
-- **Cooperative cancel** — cancel flag file works across `pkexec` / UAC elevation boundaries
-- **Privilege diagnostics** — live badge (root / polkit / UAC / unprivileged) from startup checks
-- **Light / dark themes** with persisted preference
-- **Linux:** AppImage, `.deb`, `.rpm` bundles; Wayland compatibility hook for Hyprland and similar compositors
-- **Windows:** MSI/NSIS installers; UAC handoff relaunches the app elevated so litho stdout pipes correctly
+---
 
-## Architecture
+## What you can do
 
-```
-Lithographer (user session)
-  ├─ liblitho in-process  → device list, validation, optimal block size
-  └─ litho sidecar        → pkexec / direct (Linux) or piped child (Windows)
-        └─ litho -o gui flash|clone … --cancel-file <path> [--verify]
-```
+- **Flash** an image (`.img` / `.iso` / `.img.xz`) onto a USB drive or disk  
+- **Clone** a whole disk to an image file  
+- Pick devices and files with a simple UI  
+- Optional **checksum verify** after flash  
+- **Cancel** a running operation  
+- **Light / dark** theme (preference is saved)
 
-**Linux elevation:** `pkexec litho …` by default. On AppImage, `litho` is copied to `$TMPDIR/lithographer-litho-<pid>` first because `pkexec` cannot execute binaries inside the FUSE mount. The staged copy is removed when the app exits.
+---
 
-**Windows elevation:** Lithographer relaunches itself via UAC (`--auto-run …`) so `litho.exe` runs as a hidden piped child inside the elevated GUI process (elevating litho directly would break stdout capture).
+## Platforms
 
-**Cancel across elevation:** stdin and parent signals do not reliably reach a `pkexec` child. Lithographer creates `~/.cache/litho/cancel-<pid>-<ts>.flag`, passes `--cancel-file` to litho, and writes `cancel` into the file on user cancel. Litho polls the file every ~50 ms.
+| OS | Status |
+|----|--------|
+| **Linux** | Full support (AppImage, `.deb`, `.rpm`) |
+| **Windows** | Full support (MSI / NSIS) |
+| **macOS** | Not fully supported yet |
 
-## Requirements
+---
 
-### Linux
+## Install & run
 
-- [Tauri 2 prerequisites](https://tauri.app/start/prerequisites/) (`webkit2gtk-4.1`, etc.)
-- `pkexec` (polkit) for unprivileged flash/clone
-- On **Fedora GNOME**: polkit auth is built into `gnome-shell` (the retired `polkit-gnome-authentication-agent-1` package is not required)
-
-### Windows
-
-- [Tauri 2 prerequisites](https://tauri.app/start/prerequisites/) (WebView2, Visual Studio Build Tools)
-- OpenSSL (CI uses the runner pre-install at `C:\Program Files\OpenSSL`)
-- Administrator approval via UAC for flash/clone
-
-## Repository layout
-
-Clone **lithographer** and its sibling dependency **litho** (required for `liblitho` and the bundled sidecar):
+### From a release build (Linux)
 
 ```bash
-git clone https://github.com/girish946/lithographer.git
-git clone --branch windows-implementation https://github.com/girish946/litho.git
+./lithographer_*_amd64.AppImage
+# or install the .deb / .rpm from the release assets
 ```
 
-The repos must sit side by side (`…/litho` next to `…/lithographer`). GitHub Actions checks out `litho` from the `windows-implementation` branch the same way.
+On some Wayland setups the **AppImage** includes a compatibility hook. If WebKit misbehaves, try the **`.deb`** package (system WebKitGTK).
 
-## Build
+### From a release build (Windows)
+
+Run the **MSI** or **NSIS** installer from the release, then start Lithographer from the Start menu.
+
+### From source
+
+You need:
+
+- [Tauri 2 prerequisites](https://tauri.app/start/prerequisites/)
+- A checkout of **litho** next to **lithographer** (same parent directory)
+- Linux: `pkexec` (polkit) for elevation  
+- Windows: WebView2 + ability to approve UAC
 
 ```bash
+# Sibling layout:
+#   …/litho
+#   …/lithographer
+
 cd lithographer
 npm install
 npm run tauri:build
 ```
 
-### npm scripts
-
-| Script | Description |
-|--------|-------------|
-| `npm run tauri:dev` | Prepare sidecar + `tauri dev` |
-| `npm run tauri:build` | Prepare sidecar + `tauri build` + post-build AppImage Wayland patch |
-| `npm run prepare-sidecar` | Build `litho` with `real-io` into `src-tauri/binaries/` |
-| `npm run vendor-assets` | Bundle frontend fonts/CSS locally (offline-friendly) |
-| `npm run generate-icons` | Regenerate app icons from source artwork |
-
-The sidecar build (`src-tauri/scripts/prepare-litho-sidecar.sh`) runs:
-
-```bash
-cargo build --release --no-default-features --features real-io --bin litho
-```
-
-### Build outputs
-
-| Platform | Artifacts |
-|----------|-----------|
-| Linux | `src-tauri/target/release/bundle/appimage/lithographer_*_amd64.AppImage` |
-| Linux | `src-tauri/target/release/bundle/deb/*.deb`, `rpm/*.rpm` |
-| Windows | `src-tauri/target/release/bundle/msi/*.msi`, `nsis/*.exe` |
-
-## Usage
-
-### Linux
-
-```bash
-./src-tauri/target/release/bundle/appimage/lithographer_0.1.0_amd64.AppImage
-```
-
-The AppImage includes a post-build Wayland compatibility hook (`src-tauri/scripts/patch-appimage-wayland.sh` injects `src-tauri/appimage/apprun-wayland-compat.sh`). On some setups the `.deb` package is more reliable because it uses system WebKitGTK.
-
-### Windows
-
-Run the MSI/NSIS installer output, or during development:
+Development (hot reload):
 
 ```bash
 npm run tauri:dev
 ```
 
-### Privilege elevation options (Linux)
+---
 
-| Method | Auth UI | When to use |
-|--------|---------|-------------|
-| **`pkexec` (default)** | GNOME Shell / polkit dialog (password, fingerprint) | Normal Fedora/Ubuntu GNOME sessions |
-| **`LITHOGRAPHER_ELEVATION=sudo`** | Graphical `sudo` askpass (`SUDO_ASKPASS`, `ksshaskpass`, `zenity`, …) | Polkit misbehaving |
-| **`LITHOGRAPHER_ELEVATION=run0`** | Polkit via systemd | Fedora 41+ with `run0` on PATH |
-| **Run app elevated** | One prompt at startup | `sudo ./lithographer*.AppImage` — litho spawns directly, no per-operation `pkexec` |
+## How to use
 
-```bash
-# Polkit path (default)
-./lithographer_0.1.0_amd64.AppImage
+1. Choose **Flash** or **Clone**.  
+2. Select a **storage device** (removable drives are listed first).  
+3. Choose the **image file** (flash) or **output path** (clone).  
+4. Optionally enable **verify** for flash.  
+5. Press **Start** and approve the elevation prompt if asked.  
+6. Watch progress; use **Cancel** if you need to stop.
 
-# sudo askpass fallback
-LITHOGRAPHER_ELEVATION=sudo ./lithographer_0.1.0_amd64.AppImage
+<p align="center">
+  <img src="src/assets/lithographer-window.png" alt="Lithographer main window" width="640">
+</p>
 
-# Whole session elevated
-sudo ./lithographer_0.1.0_amd64.AppImage
-```
+### Elevation (what you’ll see)
 
-### Privilege elevation (Windows)
+| Platform | What happens |
+|----------|----------------|
+| **Linux** | System password dialog (`pkexec` / polkit) when flash or clone starts |
+| **Windows** | UAC prompt; the app restarts elevated so progress still shows correctly |
 
-When you start flash/clone without Administrator rights, Lithographer prompts for UAC and relaunches with `--auto-run` so progress streams in the elevated window. The original unprivileged window exits after handoff.
+You can also start the whole app elevated (`sudo` on Linux, “Run as administrator” on Windows) so per-operation prompts are not needed.
 
-## Development
-
-```bash
-# One-time: build litho sidecar
-npm run prepare-sidecar
-
-# Dev loop (hot reload)
-npm run tauri:dev
-```
-
-After changing litho CLI protocol or cancel behaviour, rebuild the sidecar before testing Lithographer:
+**Linux only — optional elevation backends** (advanced):
 
 ```bash
-npm run prepare-sidecar
+# Default: polkit / pkexec
+./lithographer_*.AppImage
+
+# Fallback if polkit is broken: sudo askpass
+LITHOGRAPHER_ELEVATION=sudo ./lithographer_*.AppImage
 ```
 
-### Startup diagnostics
-
-The privilege badge and `get_startup_diagnostics` Tauri command report:
-
-- elevated vs unprivileged state
-- elevation backend (`pkexec`, `sudo -A`, `run0`, `uac`)
-- polkit agent or `gnome-shell (built-in polkit)` on Fedora GNOME
-- preview of the litho spawn command
-
-## CI
-
-GitHub Actions (`.github/workflows/build.yaml`):
-
-- **ubuntu-22.04** — AppImage, `.deb`, `.rpm`
-- **windows-latest** — MSI and NSIS (OpenSSL + vcpkg `liblzma` for the litho sidecar)
-
-Both jobs clone `litho` from the `windows-implementation` branch.
-
-## Screenshots
-
-<img src="src/assets/lithographer-window.png" alt="Lithographer main window">
+---
 
 ## Safety
 
-- Always double-check the target device. Flashing the wrong disk destroys data.
-- Prefer removable USB drives for flash targets.
-- Device validation (system disk, mounts, partition paths) runs in litho before any write.
+- **Wrong device = permanent data loss.** Read the device name carefully.  
+- Prefer **USB / removable** media as flash targets.  
+- Fixed (internal) disks require an extra confirmation.  
+- Litho refuses the system disk and will unmount/dismount volumes on the target only after you confirm.
 
-## Related
+---
 
-- [litho](https://github.com/girish946/litho) — CLI, library, and `litho-tui`
+## Troubleshooting (users)
+
+| Issue | What to try |
+|-------|-------------|
+| No devices listed | Re-plug the USB drive; refresh; on Linux ensure the kernel sees the disk (`lsblk`) |
+| Elevation cancelled | Approve the password/UAC dialog, or run the app elevated |
+| Flash fails mid-way | Close File Explorer / other disk tools; unmount the drive; retry |
+| AppImage blank/broken on Wayland | Try the `.deb` package or an X11 session |
+| Progress stuck after cancel | Wait for the current block to finish; cancel is cooperative |
+
+Logs for the `litho` helper and TUI-related cache live under:
+
+- Linux: `~/.cache/litho/`  
+- Windows: `%LOCALAPPDATA%\litho\`
+
+---
+
+## For developers
+
+Build system, architecture, sidecar preparation, CI, and protocol details:
+
+→ **[docs/developer-docs.md](docs/developer-docs.md)**
+
+Core engine and CLI:
+
+→ **[litho](https://github.com/girish946/litho)** (see also [litho developer docs](https://github.com/girish946/litho/blob/main/docs/developer-docs.md))
 
 ## License
 
