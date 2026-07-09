@@ -1,43 +1,1464 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SD Card Writer UI</title>
-  <link rel="stylesheet" href="styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lithographer • SD Card Writer</title>
+    <link rel="icon" type="image/jpeg" href="assets/dark-logo.jpg">
+    
+    <!-- 
+      ╔════════════════════════════════════════════════════════════╗
+      ║  POLISHED VERSION — Designed for Oat UI Framework          ║
+      ║  https://oat.ink/   (Ultra-lightweight, zero-dependency)   ║
+      ╠════════════════════════════════════════════════════════════╣
+      ║  This UI is built with clean semantic HTML so it works     ║
+      ║  beautifully with Oat (and other minimal frameworks).      ║
+      ║                                                            ║
+      ║  To switch to pure Oat UI:                                 ║
+      ║   1. Download oat.css + oat.js from https://github.com/knadh/oat
+      ║   2. Replace the Tailwind + Font Awesome CDNs below        ║
+      ║   3. Remove most utility classes — Oat styles <button>,    ║
+      ║      <select>, <progress>, <dialog>, .card, forms, etc.    ║
+      ║      automatically with ~8KB total.                        ║
+      ║   4. Keep only the app-specific CSS (theme vars, progress, ║
+      ║      mode cards, status panel, confetti, etc.)             ║
+      ║                                                            ║
+      ║  Result: Blazing fast, native-feeling desktop utility UI.  ║
+      ╚════════════════════════════════════════════════════════════╝
+    -->
+    
+    <!-- Bundled vendor assets (see scripts/vendor-frontend-assets.sh) -->
+    <script src="vendor/tailwindcss-3.4.17.js"></script>
+    <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="vendor/fonts/fonts.css">
+
+    <style>
+        :root {
+            --accent: #22d3ee;
+            --accent-dark: #06b6d4;
+        }
+
+        html {
+            height: auto;
+        }
+
+        html[data-theme="dark"] {
+            --bg: #0a0a0b;
+            --text: #e4e4e7;
+            --text-strong: #fafafa;
+            --text-muted: #a1a1aa;
+            --text-faint: #71717a;
+            --surface: #18181b;
+            --surface-raised: #27272a;
+            --surface-hover: #3f3f46;
+            --border: #3f3f46;
+            --border-subtle: #27272a;
+            --card: #18181b;
+            --chip: #27272a;
+            --icon-btn-hover: #27272a;
+            --footer-divider: #27272a;
+            --mode-idle-bg: #18181b;
+            --mode-idle-border: #3f3f46;
+            --mode-idle-hover: #52525b;
+            --mode-active-bg: #0f172a;
+            --mode-active-border: #22d3ee;
+            --mode-active-text: #e0f2fe;
+            --badge-unknown-bg: #27272a;
+            --badge-unknown-text: #a1a1aa;
+            --badge-unknown-border: #3f3f46;
+            --success: #4ade80;
+            --warning: #fbbf24;
+            --danger: #f87171;
+            --info: #60a5fa;
+        }
+
+        html[data-theme="light"] {
+            --bg: #f8f8f9;
+            --text: #3f3f46;
+            --text-strong: #111113;
+            --text-muted: #52525b;
+            --text-faint: #71717a;
+            --surface: #ffffff;
+            --surface-raised: #f4f4f5;
+            --surface-hover: #f1f1f3;
+            --border: #d4d4d8;
+            --border-subtle: #e4e4e7;
+            --card: #ffffff;
+            --chip: #f4f4f5;
+            --icon-btn-hover: #e4e4e7;
+            --footer-divider: #d4d4d8;
+            --mode-idle-bg: #ffffff;
+            --mode-idle-border: #d4d4d8;
+            --mode-idle-hover: #a1a1aa;
+            --mode-active-bg: #ecfeff;
+            --mode-active-border: #06b6d4;
+            --mode-active-text: #164e63;
+            --badge-unknown-bg: #f4f4f5;
+            --badge-unknown-text: #71717a;
+            --badge-unknown-border: #d4d4d8;
+            --success: #16a34a;
+            --warning: #ca8a04;
+            --danger: #dc2626;
+            --info: #2563eb;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            margin: 0;
+            min-height: 0;
+            overflow-x: hidden;
+            background-color: var(--bg);
+            color: var(--text);
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+
+        html.compact body {
+            overflow-y: auto;
+        }
+
+        html:not(.compact) body {
+            overflow-y: hidden;
+        }
+
+        .app-section {
+            margin-bottom: 1.5rem;
+        }
+
+        html.compact .app-section {
+            margin-bottom: 1.125rem;
+        }
+
+        html.compact .app-header {
+            margin-bottom: 1.125rem;
+        }
+
+        html.compact .app-footer {
+            margin-top: 1.125rem;
+        }
+
+        html.compact .main-card {
+            padding: 1.25rem;
+        }
+
+        @media (min-width: 640px) {
+            html.compact .main-card {
+                padding: 1.5rem;
+            }
+        }
+
+        html.compact .mode-card {
+            padding: 1rem;
+        }
+
+        @media (min-width: 640px) {
+            html.compact .mode-card {
+                padding: 1.25rem;
+            }
+        }
+
+        html.compact .control-primary,
+        html.compact #cancel-button {
+            padding-top: 0.875rem;
+            padding-bottom: 0.875rem;
+        }
+
+        #verify-status-row {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        #verify-status-row > * {
+            min-width: 0;
+        }
+
+        .logo-font {
+            font-family: 'Space Grotesk', 'Inter', sans-serif;
+            letter-spacing: -0.025em;
+        }
+
+        .glass {
+            background: var(--card);
+            border: 1px solid var(--border-subtle);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+        }
+
+        .section-label {
+            font-size: 0.6875rem;
+            letter-spacing: 0.125em;
+            text-transform: uppercase;
+            font-weight: 600;
+            color: var(--text-faint);
+            margin-bottom: 0.5rem;
+        }
+
+        .mode-card {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            background: var(--mode-idle-bg);
+            border: 1px solid var(--mode-idle-border);
+        }
+        
+        .mode-card:hover:not(.active) {
+            border-color: var(--mode-idle-hover);
+            transform: translateY(-1px);
+        }
+        
+        .mode-card.active {
+            background: var(--mode-active-bg);
+            border-color: var(--mode-active-border);
+            color: var(--mode-active-text);
+            box-shadow: 0 0 0 1px var(--mode-active-border);
+        }
+
+        .mode-card.active .mode-icon {
+            background: color-mix(in srgb, var(--mode-active-border) 15%, transparent);
+            color: var(--mode-active-border);
+        }
+
+        .theme-select {
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text-strong);
+            transition: all 0.15s ease;
+        }
+        
+        .theme-select:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
+            outline: none;
+        }
+
+        .file-btn {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            transition: all 0.2s ease;
+        }
+        
+        .file-btn:hover {
+            border-color: var(--accent);
+            background: var(--surface-hover);
+        }
+
+        .status-panel {
+            background: var(--surface);
+            border: 1px solid var(--border-subtle);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
+
+        .progress-track {
+            background: var(--surface-raised);
+            border-radius: 9999px;
+            overflow: hidden;
+            height: 6px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(to right, #22d3ee, #06b6d4);
+            transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 9999px;
+        }
+
+        .pill {
+            background: var(--chip);
+            border: 1px solid var(--border-subtle);
+            font-size: 0.75rem;
+            padding: 0.125rem 0.625rem;
+            border-radius: 9999px;
+            white-space: nowrap;
+        }
+
+        .main-logo-wrap {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+
+        .control-primary {
+            background: linear-gradient(135deg, #22d3ee, #06b6d4);
+            color: white;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+            transition: all 0.15s ease;
+            box-shadow: 0 10px 15px -3px rgb(6 182 212 / 0.3), 0 4px 6px -4px rgb(6 182 212 / 0.3);
+        }
+        
+        .control-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 20px 25px -5px rgb(6 182 212 / 0.3), 0 8px 10px -6px rgb(6 182 212 / 0.3);
+        }
+        
+        .control-primary:active {
+            transform: scale(0.985);
+        }
+
+        .terminal-text {
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+
+        .app-shell {
+            max-width: 42rem;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .litho-accent {
+            color: #22d3ee;
+        }
+
+        @media (max-width: 380px) {
+            .mode-card .mode-icon-wrap {
+                width: 2.75rem;
+                height: 2.75rem;
+            }
+        }
+    </style>
 </head>
+<body class="py-4 sm:py-5 px-4">
+    <div class="app-shell w-full">
+        <!-- Header -->
+        <div class="app-header flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
+            <div class="flex items-center gap-4">
+                <div class="main-logo-wrap w-16 h-16 sm:w-20 sm:h-20 rounded-3xl flex items-center justify-center border overflow-hidden shadow-sm">
+                    <img id="app-logo" 
+                         src="assets/dark-logo.jpg" 
+                         alt="Lithographer" 
+                         class="w-14 h-14 sm:w-16 sm:h-16 object-contain">
+                </div>
+                <div>
+                    <h1 class="logo-font text-3xl sm:text-4xl font-semibold tracking-tighter text-[var(--text-strong)]">lithographer</h1>
+                    <p class="text-sm text-[var(--text-faint)] -mt-1">SD Card • NVMe • USB Writer</p>
+                </div>
+            </div>
 
-<body class="page">
-  <div class="main-content">
-    <div class="logo-area">
-      <img src="assets/logo.png" alt="logo" class="logo-img"></img>
-    </div>
-    <div class="central-controls">
-      <div class="central-control-row">
-        <div class="left-text-column">
-          <lebal class="flash-image" id="writeFile">Flash Image</lebal>
-          <lebal class="clone-image" id="cloneDiskToFile">Clone Image</lebal>
-          <!--  <lebal class="clone-device">Clone to Device</lebal> -->
+            <div class="flex items-center gap-2.5">
+                <!-- Privilege Badge -->
+                <div id="privilege-badge"
+                     class="privilege-badge flex items-center gap-x-2 px-3.5 py-1.5 rounded-2xl border text-sm font-medium"
+                     title="Checking privilege status...">
+                    <i id="privilege-icon" class="fa-solid fa-shield-halved text-xs"></i>
+                    <span id="privilege-text" class="font-medium text-xs sm:text-sm">Checking…</span>
+                </div>
+
+                <!-- Theme Toggle -->
+                <button type="button" onclick="toggleTheme()" 
+                        class="w-10 h-10 flex items-center justify-center rounded-2xl border border-[var(--border)] hover:bg-[var(--icon-btn-hover)] transition-colors"
+                        title="Toggle theme">
+                    <i id="theme-icon" class="fa-solid fa-sun text-lg"></i>
+                </button>
+            </div>
         </div>
-        <div class="select-device-column">
-          <select class="select-device-dropdown" id="diskSelect">
-            <option value="default">Select a device</option>
-          </select>
+
+        <!-- Main Content Card -->
+        <div class="main-card glass rounded-3xl p-5 sm:p-6 shadow-xl border border-[var(--border-subtle)]">
+            
+            <!-- Mode Selection -->
+            <div class="app-section">
+                <div class="section-label">OPERATION MODE</div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="mode-select">
+                    <!-- Populated by JS or static cards -->
+                </div>
+            </div>
+
+            <!-- Target Device -->
+            <div class="app-section">
+                <div class="flex items-center justify-between gap-3">
+                    <div class="section-label !mb-0">TARGET DEVICE</div>
+                    <button type="button"
+                            onclick="loadStorageDevices()"
+                            title="Refresh device list and mount status"
+                            class="text-xs font-medium text-[var(--text-faint)] hover:text-[var(--text-muted)] px-2 py-1 rounded-lg hover:bg-[var(--surface-hover)] transition-colors">
+                        <i class="fa-solid fa-rotate-right mr-1"></i>Refresh
+                    </button>
+                </div>
+                
+                <div class="relative">
+                    <select id="diskSelect" 
+                            onchange="selectDevice(this)"
+                            class="theme-select w-full border rounded-2xl px-5 py-3.5 text-[15px] appearance-none cursor-pointer pr-12">
+                        <option value="">Select a storage device...</option>
+                    </select>
+                    <div class="pointer-events-none absolute right-5 top-1/2 -translate-y-1/2 text-[var(--text-faint)]">
+                        <i class="fa-solid fa-chevron-down text-sm"></i>
+                    </div>
+                </div>
+                
+                <div id="device-info" class="mt-3 flex flex-wrap items-center gap-2 text-sm"></div>
+                
+                <div id="fixed-device-warning"
+                     class="hidden mt-3 flex items-start gap-3 p-4 rounded-2xl border border-amber-400/30 bg-amber-400/10 text-amber-600 dark:text-amber-400 text-sm">
+                    <i class="fa-solid fa-triangle-exclamation mt-0.5 shrink-0"></i>
+                    <span class="leading-snug">This device is not removable. Writing to it can destroy data.</span>
+                </div>
+
+                <div id="mounted-device-warning"
+                     class="hidden mt-3 flex items-start gap-3 p-4 rounded-2xl border border-sky-400/30 bg-sky-400/10 text-sky-700 dark:text-sky-300 text-sm">
+                    <i class="fa-solid fa-circle-info mt-0.5 shrink-0"></i>
+                    <div class="leading-snug min-w-0">
+                        <div class="font-medium">Mounted volumes detected</div>
+                        <p id="mounted-device-detail" class="mt-1 text-[var(--text-muted)]"></p>
+                        <p class="mt-2 text-xs text-[var(--text-faint)]">
+                            When you start, Lithographer will ask you to confirm, then unmount these volumes automatically before writing.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- File Selection -->
+            <div class="app-section">
+                <div class="section-label" id="file-label">SOURCE IMAGE</div>
+                
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <button type="button" onclick="selectFile()"
+                            class="file-btn flex-1 min-w-0 border rounded-2xl px-5 py-4 text-left flex items-center gap-x-4 group">
+                        <div class="w-11 h-11 shrink-0 rounded-2xl flex items-center justify-center text-cyan-400 bg-cyan-400/10 group-hover:bg-cyan-400/15 transition-colors">
+                            <i id="file-icon" class="fa-solid fa-file-image text-2xl"></i>
+                        </div>
+                        <div class="flex-1 min-w-0 overflow-hidden">
+                            <div id="selected-file-name" class="font-semibold text-[15px] truncate">No file selected</div>
+                            <div id="selected-file-path" class="text-xs text-[var(--text-faint)] truncate mt-0.5">Click to choose an image file</div>
+                        </div>
+                    </button>
+                    
+                    <button type="button" onclick="selectFile()"
+                            class="file-btn border rounded-2xl px-6 flex items-center justify-center gap-2 text-[var(--text-muted)] hover:text-[var(--text-strong)] transition-colors">
+                        <i class="fa-solid fa-folder-open text-xl"></i>
+                        <span class="hidden sm:inline text-sm font-medium">Browse</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Verification + Status (stacked; app-shell is narrow so side-by-side caused overlap) -->
+            <div class="app-section">
+                <div id="verify-status-row">
+                    <div id="verify-section">
+                        <div class="section-label">VERIFICATION</div>
+                        <label class="file-btn flex items-start gap-4 border rounded-2xl px-5 py-4 cursor-pointer">
+                            <input type="checkbox"
+                                   id="verify-checkbox"
+                                   class="mt-1 h-4 w-4 accent-cyan-500"
+                                   onchange="verifyChecksum = this.checked">
+                            <div class="min-w-0">
+                                <div class="font-semibold text-[15px]">Verify checksum after write</div>
+                                <div class="text-xs text-[var(--text-faint)] mt-1 leading-snug">
+                                    Reads the device back and compares SHA-256 checksums. Slower but confirms the image was written correctly.
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div class="status-panel rounded-2xl p-5">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="section-label !mb-0">STATUS</div>
+                            <div id="status-text"
+                                 class="font-semibold text-sm px-3 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500">Ready</div>
+                        </div>
+                        <div id="status-detail" class="terminal-text text-[13px] text-[var(--text-muted)] break-words">
+                            Waiting for operation...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Progress (own row) -->
+            <div class="app-section">
+                <div class="status-panel rounded-2xl p-5">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="section-label !mb-0">PROGRESS</div>
+                        <div id="progress-text" class="font-mono text-sm font-medium tabular-nums">0%</div>
+                    </div>
+                    <div class="progress-track w-full">
+                        <div id="progress-bar" class="progress-bar w-0"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex flex-col-reverse sm:flex-row gap-3">
+                <button type="button" onclick="startProcess()"
+                        id="start-button"
+                        class="control-primary flex-1 py-4 sm:py-5 rounded-3xl text-lg flex items-center justify-center gap-x-3 active:scale-[0.985]">
+                    <i class="fa-solid fa-play mr-1"></i>
+                    <span id="start-text" class="font-semibold tracking-[-0.015em]">START FLASH</span>
+                </button>
+
+                <button type="button" onclick="cancelProcess()"
+                        id="cancel-button"
+                        class="hidden sm:px-10 px-8 py-4 sm:py-5 border border-red-400/40 hover:bg-red-500/5 text-red-500 hover:text-red-400 rounded-3xl font-semibold transition-all">
+                    CANCEL
+                </button>
+            </div>
         </div>
-        <div class="start-column">
-          <button class="start-button" style="color:powderblue background-color:grey" id="startProcess">Start</button>
+
+        <!-- Fixed Device Confirmation Dialog -->
+        <dialog id="fixed-device-modal"
+                class="glass rounded-3xl p-0 w-full max-w-md border border-amber-400/30 shadow-2xl backdrop:bg-black/60">
+            <div class="p-6">
+                <div class="flex gap-4">
+                    <div class="w-11 h-11 rounded-2xl bg-amber-400/10 flex-shrink-0 flex items-center justify-center text-amber-500">
+                        <i class="fa-solid fa-triangle-exclamation text-2xl"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <h3 class="font-semibold text-lg">Confirm device selection</h3>
+                        <p class="text-sm text-[var(--text-muted)] mt-1">This device is not removable. Writing to it can destroy data.</p>
+                        
+                        <div id="fixed-device-modal-name"
+                             class="mt-4 text-sm font-medium bg-[var(--chip)] border border-[var(--border-subtle)] px-4 py-2.5 rounded-2xl break-all"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex border-t border-[var(--border-subtle)]">
+                <button onclick="confirmFixedDeviceSelection(false)"
+                        class="flex-1 py-4 text-sm font-medium border-r border-[var(--border-subtle)] hover:bg-[var(--surface-hover)] rounded-bl-3xl transition-colors">
+                    Cancel
+                </button>
+                <button onclick="confirmFixedDeviceSelection(true)"
+                        class="flex-1 py-4 text-sm font-semibold text-amber-600 hover:bg-amber-500/5 rounded-br-3xl transition-colors">
+                    Continue anyway
+                </button>
+            </div>
+        </dialog>
+
+        <!-- Mounted volumes confirmation -->
+        <dialog id="mounted-device-modal"
+                class="glass rounded-3xl p-0 w-full max-w-md border border-sky-400/30 shadow-2xl backdrop:bg-black/60">
+            <div class="p-6">
+                <div class="flex gap-4">
+                    <div class="w-11 h-11 rounded-2xl bg-sky-400/10 flex-shrink-0 flex items-center justify-center text-sky-500">
+                        <i class="fa-solid fa-hard-drive text-2xl"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <h3 class="font-semibold text-lg">Unmount volumes before writing?</h3>
+                        <p class="text-sm text-[var(--text-muted)] mt-1">
+                            Litho will unmount the volumes below automatically, then flash or clone the whole disk.
+                        </p>
+                        <div id="mounted-device-modal-detail"
+                             class="mt-4 text-sm font-medium bg-[var(--chip)] border border-[var(--border-subtle)] px-4 py-2.5 rounded-2xl break-all"></div>
+                        <p class="mt-3 text-xs text-[var(--text-faint)]">
+                            Close apps using these paths. All data on the target disk will be overwritten.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex border-t border-[var(--border-subtle)]">
+                <button onclick="confirmMountedDeviceSelection(false)"
+                        class="flex-1 py-4 text-sm font-medium border-r border-[var(--border-subtle)] hover:bg-[var(--surface-hover)] rounded-bl-3xl transition-colors">
+                    Cancel
+                </button>
+                <button onclick="confirmMountedDeviceSelection(true)"
+                        class="flex-1 py-4 text-sm font-semibold text-sky-600 hover:bg-sky-500/5 rounded-br-3xl transition-colors">
+                    Unmount and continue
+                </button>
+            </div>
+        </dialog>
+
+        <!-- Footer -->
+        <div class="app-footer mt-5 text-center text-xs text-[var(--text-faint)]">
+            Made with <span class="text-red-500">♥</span> by 
+            <a href="https://github.com/girish946" target="_blank" class="hover:text-[var(--text-muted)] underline-offset-2 hover:underline">Girish Joshi</a>
         </div>
-      </div>
     </div>
-    <div class="status-row">
-      <progress class="progress-bar" id="progress" width="100%" value="0" max="100"> 0% </progress>
-      <lebal id="status-lebal" style="color:white">0%</lebal>
-    </div>
-  </div>
-  <div class="bottom-text"> made with ❤️ by Girish Joshi &ensp;&ensp;&ensp;&ensp;</div>
+
+    <script>
+        // ==================== ALL ORIGINAL LOGIC PRESERVED ====================
+        let devices = [];
+        let selectedMode = "flash";
+        let selectedDevice = null;
+        let selectedFile = null;
+        let verifyChecksum = false;
+        let isRunning = false;
+        let cancelPending = false;
+        let lithoEventUnlisten = null;
+        let lastLithoError = null;
+        let launchBlockSize = null;
+        let pendingFixedDevice = null;
+        let pendingMountedStart = false;
+        const THEME_STORAGE_KEY = "lithographer-theme";
+        let fitWindowRaf = null;
+        let windowFitObserver = null;
+        let lastFittedHeight = 0;
+
+        const modes = [
+            {
+                id: "flash",
+                label: "Flash Image",
+                icon: "fa-solid fa-download",
+                desc: "Write image to device"
+            },
+            {
+                id: "clone",
+                label: "Clone Disk",
+                icon: "fa-solid fa-clone",
+                desc: "Create image from device"
+            }
+        ];
+
+        function tauriInvoke(cmd, args = {}) {
+            if (!window.__TAURI__ || !window.__TAURI__.core) {
+                return Promise.reject(new Error("Tauri backend unavailable"));
+            }
+            return window.__TAURI__.core.invoke(cmd, args);
+        }
+
+        function measureContentHeight() {
+            return Math.ceil(document.documentElement.scrollHeight);
+        }
+
+        function maxWindowHeight() {
+            const screenHeight = window.screen?.availHeight || window.innerHeight;
+            return Math.floor(screenHeight * 0.92);
+        }
+
+        async function fitWindowToContent() {
+            if (!window.__TAURI__) return;
+
+            const maxHeight = maxWindowHeight();
+            document.documentElement.classList.remove("compact");
+
+            let contentHeight = measureContentHeight();
+            if (contentHeight > maxHeight) {
+                document.documentElement.classList.add("compact");
+                contentHeight = measureContentHeight();
+            }
+
+            const targetHeight = Math.min(contentHeight, maxHeight);
+            if (Math.abs(targetHeight - lastFittedHeight) < 2) return;
+
+            try {
+                await tauriInvoke("fit_window_to_content", { contentHeight: targetHeight });
+                lastFittedHeight = targetHeight;
+            } catch (err) {
+                console.warn("Failed to fit window to content:", err);
+            }
+        }
+
+        function scheduleFitWindow() {
+            if (fitWindowRaf) cancelAnimationFrame(fitWindowRaf);
+            fitWindowRaf = requestAnimationFrame(() => {
+                fitWindowRaf = requestAnimationFrame(() => {
+                    fitWindowRaf = null;
+                    fitWindowToContent();
+                });
+            });
+        }
+
+        function initWindowFit() {
+            scheduleFitWindow();
+
+            if (typeof ResizeObserver !== "undefined" && document.body) {
+                windowFitObserver = new ResizeObserver(() => scheduleFitWindow());
+                windowFitObserver.observe(document.body);
+            }
+
+            window.addEventListener("resize", scheduleFitWindow);
+        }
+
+        function basename(path) {
+            if (!path) return "";
+            const parts = path.split(/[/\\]/);
+            return parts[parts.length - 1] || path;
+        }
+
+        function setSelectedFile(path) {
+            if (!path) return;
+            selectedFile = {
+                name: basename(path),
+                path: path
+            };
+
+            document.getElementById("selected-file-name").textContent = selectedFile.name;
+            document.getElementById("selected-file-path").textContent = selectedFile.path;
+            document.getElementById("status-detail").innerHTML =
+                `Selected: <span class="text-cyan-400 break-all">${selectedFile.name}</span>`;
+        }
+
+        function updateFileSection() {
+            const isClone = selectedMode === "clone";
+            const label = document.getElementById("file-label");
+            const placeholder = document.getElementById("selected-file-path");
+            const icon = document.getElementById("file-icon");
+
+            label.textContent = isClone ? "OUTPUT IMAGE" : "SOURCE IMAGE";
+            icon.className = isClone ? "fa-solid fa-floppy-disk text-2xl" : "fa-solid fa-file-image text-2xl";
+
+            if (!selectedFile) {
+                placeholder.textContent = isClone
+                    ? "Click to choose where to save the clone"
+                    : "Click to choose an image file";
+            }
+        }
+
+        function renderModes() {
+            const container = document.getElementById("mode-select");
+            container.innerHTML = "";
+
+            modes.forEach(mode => {
+                const div = document.createElement("div");
+                div.className = `mode-card p-5 sm:p-6 rounded-3xl border cursor-pointer flex flex-col items-center text-center ${mode.id === selectedMode ? "active" : ""}`;
+                
+                div.innerHTML = `
+                    <div class="mode-icon-wrap w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center mb-4 text-3xl transition-colors
+                                ${mode.id === selectedMode ? 'mode-icon' : 'bg-cyan-400/10 text-cyan-400'}">
+                        <i class="${mode.icon}"></i>
+                    </div>
+                    <div class="font-semibold text-lg">${mode.label}</div>
+                    <div class="text-xs mt-1 text-[var(--text-faint)]">${mode.desc}</div>
+                `;
+                
+                div.onclick = () => {
+                    if (selectedMode === mode.id) return;
+                    selectedMode = mode.id;
+                    selectedFile = null;
+                    document.getElementById("selected-file-name").textContent = "No file selected";
+                    document.getElementById("selected-file-path").textContent = "";
+                    renderModes();
+                    updateStartButton();
+                    updateFileSection();
+                    updateVerifySection();
+                };
+                container.appendChild(div);
+            });
+        }
+
+        function sortDevicesRemovableFirst(list) {
+            return [...list].sort((a, b) => {
+                if (a.removable !== b.removable) return a.removable ? -1 : 1;
+                return a.path.localeCompare(b.path);
+            });
+        }
+
+        function defaultDeviceIndex() {
+            const readyRemovableIdx = devices.findIndex((d) => d.removable && !d.mounted);
+            if (readyRemovableIdx !== -1) return readyRemovableIdx;
+
+            const removableIdx = devices.findIndex((d) => d.removable);
+            if (removableIdx !== -1) return removableIdx;
+
+            const readyIdx = devices.findIndex((d) => !d.mounted);
+            if (readyIdx !== -1) return readyIdx;
+
+            return devices.length > 0 ? 0 : -1;
+        }
+
+        function deviceIndexByPath(path) {
+            if (!path) return -1;
+            return devices.findIndex(d => d.path === path || d.path.endsWith(path));
+        }
+
+        function deviceMountSummary(device) {
+            if (!device || !device.mounts || !device.mounts.length) return "";
+            return device.mounts
+                .map((m) => `${m.source} → ${m.mount_point}`)
+                .join(", ");
+        }
+
+        function updateStartButtonState() {
+            const startBtn = document.getElementById("start-button");
+            if (!startBtn || isRunning) return;
+
+            startBtn.classList.remove("opacity-60", "cursor-not-allowed");
+            startBtn.disabled = false;
+            startBtn.title = selectedDevice && selectedDevice.mounted
+                ? "Mounted volumes will be unmounted automatically after you confirm."
+                : "";
+        }
+
+        function updateDeviceInfo() {
+            const infoEl = document.getElementById("device-info");
+            const warningEl = document.getElementById("fixed-device-warning");
+            const mountedWarningEl = document.getElementById("mounted-device-warning");
+            const mountedDetailEl = document.getElementById("mounted-device-detail");
+
+            if (!selectedDevice) {
+                infoEl.innerHTML = "";
+                warningEl.classList.add("hidden");
+                mountedWarningEl.classList.add("hidden");
+                updateStartButtonState();
+                return;
+            }
+
+            const removableHTML = selectedDevice.removable 
+                ? `<span class="pill text-emerald-500 border-emerald-400/30">● Removable</span>`
+                : `<span class="pill text-amber-500 border-amber-400/30">● Fixed</span>`;
+            const mountedHTML = selectedDevice.mounted
+                ? `<span class="pill text-sky-600 border-sky-400/30 dark:text-sky-300">● Mounted</span>`
+                : "";
+
+            infoEl.innerHTML = `
+                <span class="pill font-mono text-xs px-3 py-1">${selectedDevice.path}</span>
+                <span class="pill">${selectedDevice.size}</span>
+                ${removableHTML}
+                ${mountedHTML}
+            `;
+
+            warningEl.classList.toggle("hidden", selectedDevice.removable);
+
+            if (selectedDevice.mounted) {
+                mountedDetailEl.textContent = deviceMountSummary(selectedDevice);
+                mountedWarningEl.classList.remove("hidden");
+            } else {
+                mountedDetailEl.textContent = "";
+                mountedWarningEl.classList.add("hidden");
+            }
+
+            updateStartButtonState();
+        }
+
+        function applyDeviceSelection(index, selectEl) {
+            if (index < 0 || index >= devices.length) {
+                selectedDevice = null;
+                if (selectEl) selectEl.value = "";
+                updateDeviceInfo();
+                return;
+            }
+
+            selectedDevice = devices[index];
+            if (selectEl) selectEl.value = String(index);
+            updateDeviceInfo();
+        }
+
+        function showFixedDeviceConfirm(device, index, selectEl, previousIndex) {
+            pendingFixedDevice = { index, selectEl, previousIndex };
+            document.getElementById("fixed-device-modal-name").textContent = 
+                `${device.name} • ${device.path}`;
+            document.getElementById("fixed-device-modal").showModal();
+        }
+
+        function hideFixedDeviceConfirm() {
+            const modal = document.getElementById("fixed-device-modal");
+            modal.close();
+            pendingFixedDevice = null;
+        }
+
+        function confirmFixedDeviceSelection(accept) {
+            const pending = pendingFixedDevice;
+            hideFixedDeviceConfirm();
+            if (!pending) return;
+
+            const select = pending.selectEl;
+            if (accept) {
+                applyDeviceSelection(pending.index, select);
+            } else if (pending.previousIndex >= 0) {
+                applyDeviceSelection(pending.previousIndex, select);
+            } else {
+                applyDeviceSelection(-1, select);
+            }
+        }
+
+        function populateDevices() {
+            const select = document.getElementById("diskSelect");
+            select.innerHTML = `<option value="">Select a storage device...</option>`;
+
+            devices.forEach((device, index) => {
+                const opt = document.createElement("option");
+                opt.value = index;
+                const mountTag = device.mounted ? " • Mounted" : "";
+                opt.textContent = `${device.name} • ${device.size} ${device.removable ? "(Removable)" : "(Fixed)"}${mountTag}`;
+                select.appendChild(opt);
+            });
+        }
+
+        function selectDevice(selectEl, options = {}) {
+            const { skipConfirm = false } = options;
+
+            if (!selectEl.value) {
+                applyDeviceSelection(-1, selectEl);
+                return;
+            }
+
+            const index = parseInt(selectEl.value, 10);
+            const device = devices[index];
+            if (!device) {
+                applyDeviceSelection(-1, selectEl);
+                return;
+            }
+
+            if (!device.removable && !skipConfirm) {
+                const previousIndex = selectedDevice ? deviceIndexByPath(selectedDevice.path) : -1;
+                if (previousIndex >= 0) {
+                    selectEl.value = String(previousIndex);
+                } else {
+                    selectEl.value = "";
+                }
+                showFixedDeviceConfirm(device, index, selectEl, previousIndex);
+                return;
+            }
+
+            applyDeviceSelection(index, selectEl);
+        }
+
+        async function selectFile() {
+            if (isRunning) return;
+
+            try {
+                const path = await tauriInvoke("pick_image_path", { mode: selectedMode });
+                if (path) {
+                    setSelectedFile(path);
+                }
+            } catch (err) {
+                console.error("File picker failed:", err);
+                document.getElementById("status-detail").textContent =
+                    "Could not open file picker. Run inside the Lithographer app.";
+            }
+        }
+
+        function updateStartButton() {
+            const btnText = document.getElementById("start-text");
+            btnText.textContent = selectedMode === "flash" ? "START FLASH" : "START CLONE";
+        }
+
+        function updateVerifySection() {
+            const section = document.getElementById("verify-section");
+            const row = document.getElementById("verify-status-row");
+            const checkbox = document.getElementById("verify-checkbox");
+            const show = selectedMode === "flash";
+            section.style.display = show ? "" : "none";
+            if (row) row.classList.toggle("verify-hidden", !show);
+            checkbox.disabled = isRunning || !show;
+            if (!show) {
+                verifyChecksum = false;
+                checkbox.checked = false;
+            }
+        }
+
+        function applyPrivilegeBadge(kind, text, title) {
+            const badge = document.getElementById("privilege-badge");
+            const label = document.getElementById("privilege-text");
+            const icon = document.getElementById("privilege-icon");
+
+            const styles = {
+                root: "flex items-center gap-x-2 px-3.5 py-1.5 bg-emerald-500/10 text-emerald-400 border-emerald-400/30 rounded-2xl",
+                polkit: "flex items-center gap-x-2 px-3.5 py-1.5 bg-sky-500/10 text-sky-400 border-sky-400/30 rounded-2xl",
+                uac: "flex items-center gap-x-2 px-3.5 py-1.5 bg-sky-500/10 text-sky-400 border-sky-400/30 rounded-2xl",
+                unprivileged: "flex items-center gap-x-2 px-3.5 py-1.5 bg-amber-500/10 text-amber-400 border-amber-400/30 rounded-2xl",
+                unknown: "flex items-center gap-x-2 px-3.5 py-1.5 bg-[var(--badge-unknown-bg)] text-[var(--badge-unknown-text)] border-[var(--badge-unknown-border)] rounded-2xl",
+            };
+
+            const icons = {
+                root: "fa-solid fa-user-shield",
+                polkit: "fa-solid fa-key",
+                uac: "fa-solid fa-shield-halved",
+                unprivileged: "fa-solid fa-shield-halved",
+                unknown: "fa-solid fa-circle-question",
+            };
+
+            badge.className = styles[kind] || styles.unknown;
+            icon.className = `${icons[kind] || icons.unknown} text-xs`;
+            label.textContent = text;
+            badge.title = title;
+        }
+
+        async function loadPrivilegeStatus() {
+            try {
+                const diag = await tauriInvoke("get_startup_diagnostics");
+                const elevated = diag.is_elevated ?? diag.is_root;
+                const ready = diag.elevation_ready ?? diag.polkit_agent_is_executable;
+                const status = diag.elevation_status || diag.polkit_status || "";
+                const spawnHint = diag.litho_spawn_preview
+                    ? `${status}\n\nCommand: ${diag.litho_spawn_preview}`
+                    : status;
+                const isWindows = diag.platform === "windows";
+
+                if (elevated) {
+                    const label = isWindows ? "Administrator" : "Privileged";
+                    const title = isWindows
+                        ? "Running elevated. Litho sidecar will be spawned directly."
+                        : "Running as root. No password prompt needed.";
+                    applyPrivilegeBadge("root", label, title);
+                } else if (ready) {
+                    if (isWindows) {
+                        applyPrivilegeBadge(
+                            "uac",
+                            "UAC available",
+                            spawnHint || "Litho will request administrator approval via UAC."
+                        );
+                    } else {
+                        applyPrivilegeBadge(
+                            "polkit",
+                            "Polkit available",
+                            spawnHint || "Will prompt for administrator password."
+                        );
+                    }
+                } else {
+                    const label = isWindows ? "Unprivileged" : "Unprivileged";
+                    const title = isWindows
+                        ? "Administrator elevation is not available."
+                        : "No elevation backend ready. Try LITHOGRAPHER_ELEVATION=pkexec (GNOME) or =sudo, or run with sudo.";
+                    applyPrivilegeBadge("unprivileged", label, title);
+                }
+
+                console.log("Startup diagnostics:", diag);
+            } catch (err) {
+                console.warn("Failed to load privilege status:", err);
+                applyPrivilegeBadge("unknown", "Unknown", "Could not determine privilege status.");
+            }
+        }
+
+        async function loadStorageDevices() {
+            const select = document.getElementById("diskSelect");
+            if (!select) return;
+
+            const previouslySelectedPath = (selectedDevice && selectedDevice.path) || null;
+            select.innerHTML = `<option value="">Detecting storage devices...</option>`;
+
+            try {
+                const realDevices = await tauriInvoke("get_storage_devices");
+                devices = sortDevicesRemovableFirst(Array.isArray(realDevices) ? realDevices : []);
+                populateDevices();
+
+                if (devices.length === 0) {
+                    select.innerHTML = `<option value="">No storage devices found</option>`;
+                } else if (previouslySelectedPath) {
+                    const idx = deviceIndexByPath(previouslySelectedPath);
+                    if (idx !== -1) {
+                        const device = devices[idx];
+                        const skipConfirm = device.removable || (selectedDevice && selectedDevice.path === device.path);
+                        select.value = idx;
+                        selectDevice(select, { skipConfirm });
+                    } else {
+                        const defaultIdx = defaultDeviceIndex();
+                        if (defaultIdx !== -1) {
+                            select.value = defaultIdx;
+                            selectDevice(select, { skipConfirm: true });
+                        }
+                    }
+                } else {
+                    const defaultIdx = defaultDeviceIndex();
+                    if (defaultIdx !== -1) {
+                        select.value = defaultIdx;
+                        selectDevice(select, { skipConfirm: true });
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to load storage devices:", err);
+                devices = [];
+                populateDevices();
+                select.innerHTML = `<option value="">Failed to query devices</option>`;
+            }
+        }
+
+        function setOperationStatus(title, titleClass, detailHtml) {
+            const statusEl = document.getElementById("status-text");
+            statusEl.textContent = title;
+            statusEl.className = `font-semibold text-sm px-3 py-0.5 rounded-full ${titleClass}`;
+            document.getElementById("status-detail").innerHTML = detailHtml;
+        }
+
+        function setProgressPercent(pct) {
+            const clamped = Math.max(0, Math.min(100, pct));
+            document.getElementById("progress-bar").style.width = `${clamped}%`;
+            document.getElementById("progress-text").textContent = `${Math.floor(clamped)}%`;
+        }
+
+        function phaseLabel(phase) {
+            const labels = {
+                preparing: "Preparing",
+                decompressing: "Decompressing",
+                writing: "Writing",
+                syncing: "Syncing",
+                verifying: "Verifying",
+                complete: "Complete",
+                failed: "Failed",
+                cancelled: "Cancelled",
+            };
+            return labels[phase] || (phase || "Working");
+        }
+
+        function handleLithoEvent(event) {
+            const payload = event.payload;
+            if (!payload || !payload.type) return;
+
+            if (cancelPending && payload.type !== "done" && payload.phase !== "cancelled") {
+                return;
+            }
+
+            switch (payload.type) {
+                case "status": {
+                    const msg = payload.message || phaseLabel(payload.phase);
+                    setOperationStatus(
+                        "IN PROGRESS",
+                        "bg-amber-500/10 text-amber-500",
+                        `<span class="font-medium">${phaseLabel(payload.phase)}</span> — ${msg}`
+                    );
+                    break;
+                }
+                case "progress": {
+                    if (payload.phase === "cancelled") {
+                        finishCancelledProcess(
+                            payload.message || "Operation cancelled by user."
+                        );
+                        break;
+                    }
+                    const label = phaseLabel(payload.phase);
+                    const pct = typeof payload.pct === "number" ? payload.pct : null;
+                    if (pct !== null) setProgressPercent(pct);
+                    const detail = payload.message || (pct !== null ? `${label} ${pct.toFixed(1)}%` : label);
+                    setOperationStatus("IN PROGRESS", "bg-amber-500/10 text-amber-500", detail);
+                    break;
+                }
+                case "error":
+                    lastLithoError = payload.message || null;
+                    setOperationStatus("ERROR", "bg-red-500/10 text-red-500", lastLithoError || "Operation failed.");
+                    break;
+                case "done":
+                    if (payload.success) {
+                        lastLithoError = null;
+                        finishProcess();
+                    } else if (payload.cancelled) {
+                        lastLithoError = null;
+                        finishCancelledProcess("Operation cancelled by user.");
+                    } else {
+                        failProcess(payload.message || lastLithoError || "Operation failed.");
+                        lastLithoError = null;
+                    }
+                    break;
+                case "raw":
+                    console.log(`[litho ${payload.stream}]`, payload.line);
+                    break;
+            }
+        }
+
+        async function ensureLithoEventListener() {
+            if (lithoEventUnlisten || !window.__TAURI__?.event?.listen) return;
+            lithoEventUnlisten = await window.__TAURI__.event.listen("litho-event", handleLithoEvent);
+        }
+
+        function showMountedDeviceConfirm() {
+            pendingMountedStart = true;
+            document.getElementById("mounted-device-modal-detail").textContent =
+                deviceMountSummary(selectedDevice);
+            document.getElementById("mounted-device-modal").showModal();
+        }
+
+        function confirmMountedDeviceSelection(accept) {
+            document.getElementById("mounted-device-modal").close();
+            const shouldStart = pendingMountedStart && accept;
+            pendingMountedStart = false;
+            if (shouldStart) {
+                startProcessInternal(true);
+            }
+        }
+
+        async function startProcess() {
+            const needsFile = selectedMode === "flash"
+                ? "Please select a device and a source image file."
+                : "Please select a device and an output image path.";
+
+            if (!selectedDevice || !selectedFile) {
+                alert(needsFile);
+                return;
+            }
+
+            if (isRunning) return;
+
+            if (selectedDevice.mounted) {
+                showMountedDeviceConfirm();
+                return;
+            }
+
+            // Start is the destructive-action confirmation; litho gets --yes to auto-unmount if needed.
+            await startProcessInternal(true);
+        }
+
+        async function startProcessInternal(autoUnmount = true) {
+            if (!selectedDevice || !selectedFile || isRunning) return;
+
+            await ensureLithoEventListener();
+
+            isRunning = true;
+            updateVerifySection();
+            document.getElementById("start-button").classList.add("opacity-60", "cursor-not-allowed");
+            document.getElementById("cancel-button").classList.remove("hidden");
+            setProgressPercent(0);
+
+            const action = selectedMode === "flash" ? "Writing" : "Cloning";
+            const target = selectedMode === "flash" ? selectedDevice.name : selectedFile.name;
+            setOperationStatus(
+                "STARTING",
+                "bg-amber-500/10 text-amber-500",
+                `${action} <span class="font-medium">${target}</span>…`
+            );
+
+            try {
+                const payload = {
+                    mode: selectedMode,
+                    device: selectedDevice.path,
+                    image: selectedFile.path,
+                    verify: selectedMode === "flash" && document.getElementById("verify-checkbox").checked,
+                    auto_unmount: autoUnmount,
+                };
+                if (launchBlockSize) {
+                    payload.block_size = launchBlockSize;
+                }
+                await tauriInvoke("start_litho_operation", payload);
+                setOperationStatus("IN PROGRESS", "bg-amber-500/10 text-amber-500", "Waiting for litho progress stream…");
+            } catch (err) {
+                console.error("Failed to start litho operation:", err);
+                const message = err && err.message ? err.message : String(err);
+                failProcess(message);
+            }
+        }
+
+        function finishCancelledProcess(message) {
+            if (!isRunning && !cancelPending) return;
+            isRunning = false;
+            cancelPending = false;
+            updateVerifySection();
+            document.getElementById("cancel-button").classList.add("hidden");
+            updateStartButtonState();
+            setOperationStatus("CANCELLED", "bg-orange-500/10 text-orange-500", message);
+        }
+
+        function failProcess(message) {
+            if (!isRunning) return;
+            isRunning = false;
+            cancelPending = false;
+            updateVerifySection();
+            document.getElementById("cancel-button").classList.add("hidden");
+            updateStartButtonState();
+            setOperationStatus("ERROR", "bg-red-500/10 text-red-500", message);
+        }
+
+        function finishProcess() {
+            if (!isRunning) return;
+            isRunning = false;
+            cancelPending = false;
+            updateVerifySection();
+            document.getElementById("cancel-button").classList.add("hidden");
+            updateStartButtonState();
+
+            const statusEl = document.getElementById("status-text");
+            statusEl.textContent = "COMPLETE";
+            statusEl.className = "font-semibold text-sm px-3 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500";
+
+            const verb = selectedMode === "flash" ? "flashed" : "cloned";
+            const target = selectedMode === "flash" ? selectedDevice.name : selectedFile.name;
+            document.getElementById("status-detail").innerHTML =
+                `Successfully ${verb} <span class="font-medium">${target}</span>`;
+
+            confettiBurst();
+        }
+
+        async function cancelProcess() {
+            if (!isRunning || cancelPending) return;
+
+            cancelPending = true;
+            setOperationStatus(
+                "IN PROGRESS",
+                "bg-amber-500/10 text-amber-500",
+                "Cancelling — waiting for I/O to stop..."
+            );
+
+            tauriInvoke("cancel_litho_operation").catch((err) => {
+                console.warn("Cancel request failed:", err);
+                if (cancelPending) {
+                    cancelPending = false;
+                    failProcess("Failed to cancel operation.");
+                }
+            });
+        }
+
+        function confettiBurst() {
+            const colors = ['#22d3ee', '#06b6d4', '#67e8f9', '#a5f3fc'];
+            for (let i = 0; i < 70; i++) {
+                setTimeout(() => {
+                    const confetti = document.createElement("div");
+                    confetti.style.position = "fixed";
+                    confetti.style.left = Math.random() * 100 + "vw";
+                    confetti.style.top = "-12px";
+                    confetti.style.width = "7px";
+                    confetti.style.height = "7px";
+                    confetti.style.borderRadius = Math.random() > 0.5 ? "50%" : "2px";
+                    confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                    confetti.style.zIndex = "99999";
+                    confetti.style.opacity = "0.9";
+                    document.body.appendChild(confetti);
+
+                    let y = 0;
+                    const fall = setInterval(() => {
+                        y += 11 + Math.random() * 9;
+                        confetti.style.transform = `translateY(${y}px) rotate(${y * 5}deg)`;
+                        if (y > window.innerHeight + 30) {
+                            clearInterval(fall);
+                            confetti.remove();
+                        }
+                    }, 16);
+                }, i * 3.5);
+            }
+        }
+
+        function getSystemTheme() {
+            return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        }
+
+        function getActiveTheme() {
+            return document.documentElement.getAttribute("data-theme") || "dark";
+        }
+
+        function updateAppLogo(theme) {
+            const logoEl = document.getElementById("app-logo");
+            if (!logoEl) return;
+            const logoSrc = theme === "dark" ? "assets/dark-logo.jpg" : "assets/light-logo.jpg";
+            if (!logoEl.src.endsWith(logoSrc)) {
+                logoEl.src = logoSrc;
+            }
+        }
+
+        function updateThemeToggleIcon(theme) {
+            const icon = document.getElementById("theme-icon");
+            if (!icon) return;
+            if (theme === "dark") {
+                icon.className = "fa-solid fa-sun text-amber-300";
+                icon.parentElement.title = "Switch to light theme";
+            } else {
+                icon.className = "fa-solid fa-moon text-slate-500";
+                icon.parentElement.title = "Switch to dark theme";
+            }
+        }
+
+        function applyTheme(theme) {
+            document.documentElement.setAttribute("data-theme", theme);
+            try { localStorage.setItem(THEME_STORAGE_KEY, theme); } catch (_) {}
+            updateAppLogo(theme);
+            updateThemeToggleIcon(theme);
+        }
+
+        function initTheme() {
+            let theme = null;
+            try { theme = localStorage.getItem(THEME_STORAGE_KEY); } catch (_) {}
+            applyTheme(theme === "light" || theme === "dark" ? theme : getSystemTheme());
+        }
+
+        function toggleTheme() {
+            applyTheme(getActiveTheme() === "dark" ? "light" : "dark");
+        }
+
+        async function applyLaunchParamsIfAny() {
+            try {
+                const params = await tauriInvoke("get_launch_params");
+                const hasAny = params.mode || params.device || params.image;
+                if (!hasAny) return;
+
+                if (params.mode) {
+                    const wanted = String(params.mode).toLowerCase();
+                    selectedMode = wanted === "clone" ? "clone" : "flash";
+                    renderModes();
+                    updateStartButton();
+                    updateFileSection();
+                    updateVerifySection();
+                }
+
+                if (params.device) {
+                    let idx = deviceIndexByPath(params.device);
+                    if (idx === -1) {
+                        devices = sortDevicesRemovableFirst(devices.concat([{
+                            name: basename(params.device),
+                            path: params.device,
+                            size: "Unknown size",
+                            removable: false,
+                            model: "From args"
+                        }]));
+                        populateDevices();
+                        idx = deviceIndexByPath(params.device);
+                    }
+                    const select = document.getElementById("diskSelect");
+                    select.value = idx;
+                    selectDevice(select);
+                }
+
+                if (params.image) {
+                    setSelectedFile(params.image);
+                }
+
+                if (params.verify && selectedMode === "flash") {
+                    const checkbox = document.getElementById("verify-checkbox");
+                    if (checkbox) checkbox.checked = true;
+                }
+
+                if (typeof params.block_size === "number" && params.block_size > 0) {
+                    launchBlockSize = params.block_size;
+                }
+            } catch (err) {
+                console.warn("Failed to read/apply launch params:", err);
+            }
+        }
+
+        async function maybeAutoStartFromLaunchParams() {
+            try {
+                const params = await tauriInvoke("get_launch_params");
+                if (!params.auto_run || !params.mode || !params.device || !params.image) {
+                    return;
+                }
+
+                const diag = await tauriInvoke("get_startup_diagnostics");
+                const elevated = diag.is_elevated ?? diag.is_root;
+                if (!elevated) {
+                    console.warn("auto-run requested but process is not elevated");
+                    return;
+                }
+
+                setOperationStatus(
+                    "STARTING",
+                    "bg-amber-500/10 text-amber-500",
+                    "Continuing after UAC elevation…"
+                );
+                await startProcessInternal(!!params.auto_unmount);
+            } catch (err) {
+                console.warn("Failed to auto-start from launch params:", err);
+            }
+        }
+
+        function handleKeyboard(e) {
+            const fixedModal = document.getElementById("fixed-device-modal");
+            const mountedModal = document.getElementById("mounted-device-modal");
+            const modalOpen = (fixedModal && fixedModal.open) || (mountedModal && mountedModal.open);
+
+            if (modalOpen) {
+                if (e.key === "Escape") {
+                    e.preventDefault();
+                    if (mountedModal && mountedModal.open) {
+                        confirmMountedDeviceSelection(false);
+                    } else {
+                        confirmFixedDeviceSelection(false);
+                    }
+                } else if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (mountedModal && mountedModal.open) {
+                        confirmMountedDeviceSelection(true);
+                    } else {
+                        confirmFixedDeviceSelection(true);
+                    }
+                }
+                return;
+            }
+
+            if (e.key === "/" && !["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) {
+                e.preventDefault();
+                document.getElementById("diskSelect").focus();
+            }
+        }
+
+        window.onload = async function() {
+            initTheme();
+            renderModes();
+            updateStartButton();
+            updateFileSection();
+            updateVerifySection();
+
+            document.addEventListener("keydown", handleKeyboard);
+
+            console.log("%c[Lithographer] Polished Oat-ready UI loaded", "color:#22d3ee; font-family:monospace");
+
+            loadPrivilegeStatus();
+            await ensureLithoEventListener();
+            await loadStorageDevices();
+            await applyLaunchParamsIfAny();
+            await maybeAutoStartFromLaunchParams();
+            initWindowFit();
+        };
+    </script>
 </body>
-
-<script src="main.js"></script>
-
 </html>

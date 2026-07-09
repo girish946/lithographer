@@ -1,95 +1,42 @@
 {
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "lithographer",
+  "version": "0.1.0",
+  "identifier": "com.girish.lithographer",
   "build": {
-    "beforeDevCommand": "",
-    "beforeBuildCommand": "",
-    "devPath": "../src",
-    "distDir": "../src",
-    "withGlobalTauri": true
+    "frontendDist": "../src"
   },
-  "package": {
-    "productName": "lithographer",
-    "version": "0.0.1"
-  },
-  "tauri": {
-    "allowlist": {
-      "all": false,
-      "fs": {
-        "all": false
-      },
-      "dialog": {
-        "all": false,
-        "open": true,
-        "save": true
-      },
-      "shell": {
-        "all": false,
-        "execute": true
-      }
-    },
-    "bundle": {
-      "active": true,
-      "targets": "all",
-      "identifier": "com.lithographer.dev",
-      "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png",
-        "icons/128x128@2x.png",
-        "icons/icon.icns",
-        "icons/icon.ico"
-      ]
-    },
-    "cli": {
-      "description": "",
-      "longDescription": "",
-      "beforeHelp": "",
-      "afterHelp": "",
-      "args": [],
-      "subcommands": {
-        "clone": {
-          "args": [
-            {
-              "name": "file",
-              "short": "f",
-              "takesValue": true,
-              "multiple": false
-            },
-            {
-              "name": "disk",
-              "short": "d",
-              "takesValue": true,
-              "multiple": false
-            }
-          ]
-        },
-        "flash": {
-          "args": [
-            {
-              "name": "file",
-              "short": "f",
-              "takesValue": true,
-              "multiple": false
-            },
-            {
-              "name": "disk",
-              "short": "d",
-              "takesValue": true,
-              "multiple": false
-            }
-          ]
-        }
-      }
-    },
-    "security": {
-      "csp": null
-    },
+  "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
-        "fullscreen": false,
-        "resizable": false,
+        "label": "main",
         "title": "lithographer",
-        "width": 1215,
-        "height": 600
+        "width": 920,
+        "height": 720,
+        "minWidth": 300,
+        "minHeight": 360,
+        "resizable": true,
+         "decorations": true
       }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "resources": [],
+    "externalBin": [
+      "binaries/litho"
     ]
   }
 }

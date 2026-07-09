@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# frontend framework files and fonts
+src/vendor/*
+
+# sidecar files
+src-tauri/binaries/*
