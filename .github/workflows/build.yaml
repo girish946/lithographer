@@ -8,7 +8,7 @@ on:
 
 env:
   LITHO_REPO: https://github.com/girish946/litho.git
-  LITHO_BRANCH: windows-implementation
+  LITHO_BRANCH: master
 
 jobs:
   build-tauri-linux:
