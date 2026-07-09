@@ -1,10 +1,10 @@
 [package]
 name = "lithographer"
-version = "0.1.0"
+version = "0.2.0"
 description = "A Tauri App to create bootable usb devices"
 authors = ["Girish Joshi"]
-license = ""
-repository = ""
+license = "MIT
+repository = "https://github.com/girish946/lithographer"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
