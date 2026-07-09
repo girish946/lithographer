@@ -409,7 +409,9 @@ fn validate_device_for_operation(device: &str) -> Result<(), String> {
     litho_devices::validate_device_for_io(device).map_err(map_device_validation_error)
 }
 
-fn map_device_validation_error(err: String) -> String {
+/// Map liblitho [`DeviceError`] (or any displayable validation error) to a GUI-facing string.
+fn map_device_validation_error(err: impl std::fmt::Display) -> String {
+    let err = err.to_string();
     if err.contains("still mounted") || err.contains("device is mounted") {
         return err;
     }

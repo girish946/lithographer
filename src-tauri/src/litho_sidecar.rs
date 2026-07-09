@@ -76,12 +76,15 @@ fn resolve_litho_binary_raw(app: &AppHandle) -> Result<PathBuf, String> {
 }
 
 fn sidecar_filenames(triple: &str) -> Vec<String> {
-    let mut names = vec![format!("litho-{triple}"), "litho".to_string()];
     #[cfg(windows)]
-    {
-        names.insert(0, format!("litho-{triple}.exe"));
-        names.insert(1, "litho.exe".to_string());
-    }
+    let names = vec![
+        format!("litho-{triple}.exe"),
+        "litho.exe".to_string(),
+        format!("litho-{triple}"),
+        "litho".to_string(),
+    ];
+    #[cfg(not(windows))]
+    let names = vec![format!("litho-{triple}"), "litho".to_string()];
     dedupe_strings(names)
 }
 
@@ -201,17 +204,21 @@ fn dev_litho_binary() -> Option<PathBuf> {
     let triple = env!("LITHO_TARGET_TRIPLE");
 
     // Prefer release (typically built with real-io for sidecar) over debug (often simulated-io).
-    let mut candidates = vec![
+    #[cfg(windows)]
+    let candidates = [
+        manifest_dir.join(format!("binaries/litho-{triple}.exe")),
+        manifest_dir.join("../../litho/target/release/litho.exe"),
+        manifest_dir.join("../../litho/target/debug/litho.exe"),
         manifest_dir.join(format!("binaries/litho-{triple}")),
         manifest_dir.join("../../litho/target/release/litho"),
         manifest_dir.join("../../litho/target/debug/litho"),
     ];
-    #[cfg(windows)]
-    {
-        candidates.insert(0, manifest_dir.join(format!("binaries/litho-{triple}.exe")));
-        candidates.insert(1, manifest_dir.join("../../litho/target/release/litho.exe"));
-        candidates.insert(2, manifest_dir.join("../../litho/target/debug/litho.exe"));
-    }
+    #[cfg(not(windows))]
+    let candidates = [
+        manifest_dir.join(format!("binaries/litho-{triple}")),
+        manifest_dir.join("../../litho/target/release/litho"),
+        manifest_dir.join("../../litho/target/debug/litho"),
+    ];
 
     candidates.into_iter().find(|candidate| candidate.is_file())
 }

@@ -55,7 +55,7 @@ pub fn spawn_litho_operation(
     }
 
     let litho_path = resolve_litho_binary(&app)?;
-    liblitho::devices::validate_device_for_io(&request.device)?;
+    liblitho::devices::validate_device_for_io(&request.device).map_err(|e| e.to_string())?;
 
     #[cfg(windows)]
     if !has_privileged_access() {
